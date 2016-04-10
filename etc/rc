@@ -158,6 +158,21 @@ autoboot|start)
 	edit memory
 	edit pfs
 	edit init
+	#
+	# Keep a copy around to recover the root FS from crashes
+	#
+	rootfs=fs_`cat /etc/mtab | grep "on / " | cut -d' ' -f 1  | cut -d'/' -f 3`
+	service -c edit /service/mfs -label $rootfs
+    fi
+
+    # clone for recovery
+    if [ "`sysenv no_restart`" = 1 ]; then
+	echo "Restarting disabled, services not cloned"
+    else
+	echo "Cloning services for later restart"
+	for cloned in rs pm vfs ds vm
+	do	service clone $cloned
+	done
     fi
 
     if [ "$sflag" ]

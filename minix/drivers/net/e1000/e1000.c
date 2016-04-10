@@ -289,7 +289,7 @@ e1000_init_buf(e1000_t * e)
 
 	/* Allocate receive descriptors. */
 	if ((e->rx_desc = alloc_contig(sizeof(e1000_rx_desc_t) *
-	    e->rx_desc_count, AC_ALIGN4K, &rx_desc_p)) == NULL)
+	    e->rx_desc_count, AC_ALIGN4K|AC_NORELOC, &rx_desc_p)) == NULL)
 		panic("failed to allocate RX descriptors");
 
 	memset(e->rx_desc, 0, sizeof(e1000_rx_desc_t) * e->rx_desc_count);
@@ -315,11 +315,11 @@ e1000_init_buf(e1000_t * e)
 	/* Allocate transmit buffers. */
 	e->tx_buffer_size = E1000_TXDESC_NR * E1000_IOBUF_SIZE;
 
-	if ((e->tx_buffer = alloc_contig(e->tx_buffer_size, AC_ALIGN4K,
-	    &tx_buff_p)) == NULL)
+	if ((e->tx_buffer = alloc_contig(e->tx_buffer_size,
+	    AC_ALIGN4K|AC_NORELOC, &tx_buff_p)) == NULL)
 		panic("failed to allocate TX buffers");
 
-	/* Set up transmit descriptors. */
+	/* Setup transmit descriptors. */
 	for (i = 0; i < E1000_TXDESC_NR; i++)
 		e->tx_desc[i].buffer = tx_buff_p + i * E1000_IOBUF_SIZE;
 

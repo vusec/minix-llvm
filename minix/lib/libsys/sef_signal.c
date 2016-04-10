@@ -4,10 +4,10 @@
 #include <minix/sysutil.h>
 
 /* SEF Signal callbacks. */
-static struct sef_cbs {
+static struct sef_signal_cbs {
     sef_cb_signal_handler_t             sef_cb_signal_handler;
     sef_cb_signal_manager_t             sef_cb_signal_manager;
-} sef_cbs = {
+} sef_signal_cbs = {
     SEF_CB_SIGNAL_HANDLER_DEFAULT,
     SEF_CB_SIGNAL_MANAGER_DEFAULT
 };
@@ -47,10 +47,10 @@ static void process_sigmgr_signals(void)
               assert(s >= 0);
               if(s) {
                   /* Let the callback code process the signal. */
-                  r = sef_cbs.sef_cb_signal_manager(target, signo);
+                  r = sef_signal_cbs.sef_cb_signal_manager(target, signo);
 
                   /* Stop if process is gone. */
-                  if(r == EDEADSRCDST) {
+                  if(r == EDEADEPT) {
                       break;
                   }
               }
@@ -77,7 +77,7 @@ static void process_sigmgr_self_signals(sigset_t sigset)
       assert(s >= 0);
       if(s) {
           /* Let the callback code process the signal. */
-          sef_cbs.sef_cb_signal_handler(signo);
+          sef_signal_cbs.sef_cb_signal_handler(signo);
       }
   }
 }
@@ -99,7 +99,7 @@ int do_sef_signal_request(message *m_ptr)
           assert(s >= 0);
           if (s) {
               /* Let the callback code handle the kernel signal. */
-              sef_cbs.sef_cb_signal_handler(signo);
+              sef_signal_cbs.sef_cb_signal_handler(signo);
 
               /* Handle SIGKSIG for a signal manager. */
               if(signo == SIGKSIG) {
@@ -125,7 +125,7 @@ int do_sef_signal_request(message *m_ptr)
 #endif
 
       /* Let the callback code handle the signal. */
-      sef_cbs.sef_cb_signal_handler(signo);
+      sef_signal_cbs.sef_cb_signal_handler(signo);
   }
 
   /* Return OK not to let anybody else intercept the request. */
@@ -138,7 +138,7 @@ int do_sef_signal_request(message *m_ptr)
 void sef_setcb_signal_handler(sef_cb_signal_handler_t cb)
 {
   assert(cb != NULL);
-  sef_cbs.sef_cb_signal_handler = cb;
+  sef_signal_cbs.sef_cb_signal_handler = cb;
 }
 
 /*===========================================================================*
@@ -147,7 +147,7 @@ void sef_setcb_signal_handler(sef_cb_signal_handler_t cb)
 void sef_setcb_signal_manager(sef_cb_signal_manager_t cb)
 {
   assert(cb != NULL);
-  sef_cbs.sef_cb_signal_manager = cb;
+  sef_signal_cbs.sef_cb_signal_manager = cb;
 }
 
 /*===========================================================================*
@@ -155,6 +155,7 @@ void sef_setcb_signal_manager(sef_cb_signal_manager_t cb)
  *===========================================================================*/
 void sef_cb_signal_handler_null(int signo)
 {
+  SEF_SIGNAL_HANDLE_DEFAULT(signo);
 }
 
 /*===========================================================================*
@@ -174,6 +175,7 @@ void sef_cb_signal_handler_term(int signo)
   if(signo == SIGTERM) {
       sef_exit(1);
   }
+  SEF_SIGNAL_HANDLE_DEFAULT(signo);
 }
 
 /*===========================================================================*
@@ -191,10 +193,13 @@ void sef_cb_signal_handler_posix_default(int signo)
       case SIGTTOU:
       break;
 
-      /* Terminate in any other case unless it is a kernel signal. */
+      /* Terminate in any other case unless it is a kernel/default signal. */
       default:
           if(!IS_SIGK(signo)) {
               sef_exit(1);
+          }
+          else {
+              SEF_SIGNAL_HANDLE_DEFAULT(signo);
           }
       break;
   }

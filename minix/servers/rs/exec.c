@@ -6,8 +6,8 @@
 #include <machine/vmparam.h>
 
 static int do_exec(int proc_e, char *exec, size_t exec_len, char *progname,
-	char *frame, int frame_len, vir_bytes ps_str);
-static int exec_restart(int proc_e, int result, vir_bytes pc, vir_bytes ps_str);
+	char *frame, int frame_len, vir_bytes ps_str); /* depends on PM */
+static int exec_restart(int proc_e, int result, vir_bytes pc, vir_bytes ps_str); /* depends on PM */
 static int read_seg(struct exec_info *execi, off_t off,
         vir_bytes seg_addr, size_t seg_bytes);
 
@@ -20,7 +20,7 @@ static struct exec_loaders {
 };
 
 int srv_execve(int proc_e, char *exec, size_t exec_len, char **argv,
-	char **envp)
+	char **envp) /* depends on VM and PM */
 {
 	size_t frame_size = 0;	/* Size of the new initial stack. */
 	int argc = 0;		/* Argument count. */
@@ -43,7 +43,7 @@ int srv_execve(int proc_e, char *exec, size_t exec_len, char **argv,
 	}
 
 	/* Allocate space for the stack frame. */
-	if ((frame = (char *) sbrk(frame_size)) == (char *) -1) {
+	if ((frame = (char *) RSCHECK_PTR(sbrk(frame_size))) == (char *) -1) { /* sendrec to VM */
 		errno = E2BIG;
 		return -1;
 	}
@@ -54,17 +54,17 @@ int srv_execve(int proc_e, char *exec, size_t exec_len, char **argv,
 	(progname=strrchr(argv[0], '/')) ? progname++ : (progname=argv[0]);
 
 	r = do_exec(proc_e, exec, exec_len, progname, frame, frame_size,
-		vsp + ((char *)psp - frame));
+		vsp + ((char *)psp - frame)); /* depends on PM */
 
 	/* Failure, return the memory used for the frame and exit. */
-	(void) sbrk(-frame_size);
+	(void) RSCHECK_PTR(sbrk(-frame_size)); /* sendrec to VM */
 
 	return r;
 }
 
 
 static int do_exec(int proc_e, char *exec, size_t exec_len, char *progname,
-	char *frame, int frame_len, vir_bytes ps_str)
+	char *frame, int frame_len, vir_bytes ps_str) /* depends on PM */
 {
 	int r;
 	vir_bytes vsp;
@@ -86,14 +86,15 @@ static int do_exec(int proc_e, char *exec, size_t exec_len, char *progname,
 	execi.copymem = read_seg;
 	execi.clearproc = libexec_clearproc_vm_procctl;
 	execi.clearmem = libexec_clear_sys_memset;
-	execi.allocmem_prealloc_cleared = libexec_alloc_mmap_prealloc_cleared;
-	execi.allocmem_prealloc_junk = libexec_alloc_mmap_prealloc_junk;
-	execi.allocmem_ondemand = libexec_alloc_mmap_ondemand;
+	execi.allocmem_prealloc_cleared = libexec_alloc_mmap_prealloc_cleared; /* sendrec to VM */
+	execi.allocmem_prealloc_junk = libexec_alloc_mmap_prealloc_junk; /* sendrec to VM */
+	execi.allocmem_ondemand = libexec_alloc_mmap_ondemand; /* sendrec to VM */
 
 	for(i = 0; exec_loaders[i].load_object != NULL; i++) {
 	    r = (*exec_loaders[i].load_object)(&execi);
 	    /* Loaded successfully, so no need to try other loaders */
 	    if (r == OK) break;
+	    RSCHECK_ERR(r);
 	}
 
 	/* No exec loader could load the object */
@@ -103,8 +104,10 @@ static int do_exec(int proc_e, char *exec, size_t exec_len, char *progname,
 	}
 
 	/* Inform PM */
-        if((r = libexec_pm_newexec(execi.proc_e, &execi)) != OK)
-		return r;
+        if((r = libexec_pm_newexec(execi.proc_e, &execi)) != OK) { /* sendrec to PM */
+	    RSCHECK_ERR(r);
+	    return r;
+	}
 
 	/* Patch up stack and copy it from RS to new core image. */
 	vsp = execi.stack_high - frame_len;
@@ -112,17 +115,17 @@ static int do_exec(int proc_e, char *exec, size_t exec_len, char *progname,
 		proc_e, (vir_bytes) vsp, (phys_bytes)frame_len);
 	if (r != OK) {
 		printf("do_exec: copying out new stack failed: %d\n", r);
-		exec_restart(proc_e, r, execi.pc, ps_str);
+		exec_restart(proc_e, r, execi.pc, ps_str); /* depends on PM */
 		return r;
 	}
 
-	return exec_restart(proc_e, OK, execi.pc, ps_str);
+	return exec_restart(proc_e, OK, execi.pc, ps_str); /* depends on PM */
 }
 
 /*===========================================================================*
  *				exec_restart				     *
  *===========================================================================*/
-static int exec_restart(int proc_e, int result, vir_bytes pc, vir_bytes ps_str)
+static int exec_restart(int proc_e, int result, vir_bytes pc, vir_bytes ps_str) /* depends on PM */
 {
 	int r;
 	message m;
@@ -134,9 +137,11 @@ static int exec_restart(int proc_e, int result, vir_bytes pc, vir_bytes ps_str)
 	m.m_rs_pm_exec_restart.pc = pc;
 	m.m_rs_pm_exec_restart.ps_str = ps_str;
 
-	r = ipc_sendrec(PM_PROC_NR, &m);
-	if (r != OK)
+	r = ipc_sendrec(PM_PROC_NR, &m); /* sendrec to PM */
+	if (r != OK) {
+		RSCHECK_ERR(r);
 		return r;
+	}
 
 	return m.m_type;
 }

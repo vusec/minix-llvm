@@ -63,7 +63,16 @@
 
 /* And what is the highest addressable piece of memory? */
 #define VM_DATATOP      kernel_boot_info.user_end
+
 #define VM_STACKTOP     kernel_boot_info.user_sp
+#define VM_MMAPTOP      (VM_STACKTOP-DEFAULT_STACK_LIMIT)
+#define VM_MMAPBASE    (VM_MMAPTOP/2)
+
+extern char _end;
+#define VM_OWN_HEAPSTART ((vir_bytes) (&_end))
+#define VM_OWN_HEAPBASE   roundup(VM_OWN_HEAPSTART, VM_PAGE_SIZE)
+#define VM_OWN_MMAPBASE (VM_OWN_HEAPBASE+1024*1024*1024)
+#define VM_OWN_MMAPTOP   (VM_OWN_MMAPBASE+100 * 1024 * 1024)
 
 #endif
 

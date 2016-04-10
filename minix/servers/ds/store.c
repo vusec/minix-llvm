@@ -1,5 +1,5 @@
 #include "inc.h"
-#include "store.h"
+#include <minix/ds.h>
 
 /* Allocate space for the data store. */
 static struct data_store ds_store[NR_DS_KEYS];

@@ -5,6 +5,7 @@
 
 #include <sys/select.h>
 #include <minix/safecopies.h>
+#include <minix/sef.h>
 
 /* This is the per-process information.  A slot is reserved for each potential
  * process. Thus NR_PROCS must be the same as in the kernel. It is not
@@ -43,7 +44,9 @@ EXTERN struct fproc {
   struct worker_thread *fp_worker;/* active worker thread, or NULL */
   void (*fp_func)();		/* handler function for pending work */
   message fp_msg;		/* pending or active message from process */
+  int fp_msg_status;		/* ipc status for fp_msg */
   message fp_pm_msg;		/* pending/active postponed PM request */
+  int fp_pm_msg_status;		/* ipc status for fp_pm_msg_status */
 
   char fp_name[PROC_NAME_LEN];	/* Last exec() */
 #if LOCK_DEBUG

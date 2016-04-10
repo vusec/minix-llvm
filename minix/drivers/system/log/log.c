@@ -43,7 +43,7 @@ static struct chardriver log_dtab = {
 static void sef_local_startup(void);
 static int sef_cb_init_fresh(int type, sef_init_info_t *info);
 EXTERN int sef_cb_lu_prepare(int state);
-EXTERN int sef_cb_lu_state_isvalid(int state);
+EXTERN int sef_cb_lu_state_isvalid(int state, int flags);
 EXTERN void sef_cb_lu_state_dump(int state);
 static void sef_cb_signal_handler(int signo);
 
@@ -113,7 +113,10 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
 static void sef_cb_signal_handler(int signo)
 {
   /* Only check for a pending message from the kernel, ignore anything else. */
-  if (signo != SIGKMESS) return;
+  if (signo != SIGKMESS) {
+      SEF_SIGNAL_HANDLE_DEFAULT(signo);
+      return;
+  }
 
   do_new_kmess();
 }

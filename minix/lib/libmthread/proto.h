@@ -22,7 +22,7 @@ void mthread_init_keys(void);
 void mthread_cleanup_values(void);
 
 /* misc.c */
-#ifdef MDEBUG
+#ifndef MTHREADSILENT
 #define mthread_panic(m) mthread_panic_f(__FILE__, __LINE__, (m))
 void mthread_panic_f(const char *file, int line, const char *msg);
 #define mthread_debug(m) mthread_debug_f(__FILE__, __LINE__, (m))

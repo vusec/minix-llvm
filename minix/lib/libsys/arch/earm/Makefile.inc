@@ -6,6 +6,7 @@ HERE=${.CURDIR}/arch/${MACHINE_ARCH}
 
 SRCS+=  \
 	frclock_util.c \
+	hypermem-lowlevel.c \
 	spin.c \
         tsc_util.c
 

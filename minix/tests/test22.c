@@ -11,7 +11,8 @@
 
 #include "common.h"
 
-#define ITERATIONS 2
+#define ITERATIONS_FULL  2
+#define ITERATIONS_QUICK 1
 
 #define System(cmd)	if (system(cmd) != 0) printf("``%s'' failed\n", cmd)
 #define Chdir(dir)	if (chdir(dir) != 0) printf("Can't goto %s\n", dir)
@@ -31,7 +32,7 @@ int main(int argc, char *argv[])
   if (argc == 2) m = atoi(argv[1]);
   start(22);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 0001) test22a();
   }
 

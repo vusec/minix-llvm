@@ -16,12 +16,15 @@ MINIX_LLVM_DIR=
 LLVMPASS=
 LLVMARGS=
 LLVMPASS_PATHS=
+BINI_ARGS=
 TARGET_MODULES=
 MINIX_MODS=
 
 # Set default values for essential variables
 : ${GENERATE_MAP="no"}
-: ${C="servers,drivers"}
+: ${C="servers,fs,net,drivers"}
+: ${OPTFLAGS_APPEND=""}
+: ${OPTFLAGS_REPLACE_STRING=""}
 
 function usage()
 {
@@ -53,6 +56,64 @@ function check_current_dir()
    MINIX_LLVM_DIR="${MINIX_ROOT}/minix/llvm"
 }
 
+# copied from llvm-apps/apps/scripts/include/build.sh.inc
+build_llvm_cmd()
+{
+	echo "$@" >&2
+	"$@"
+}
+
+# copied from llvm-apps/apps/scripts/include/build.sh.inc
+build_di_env_args()
+{
+        echo DYNINSTAPI_RT_LIB=${DYNINST_RT_LIB} LD_LIBRARY_PATH=${DYNINST_LIB_DIR}:${LD_LIBRARY_PATH}
+}
+
+# copied from llvm-apps/apps/scripts/include/build.sh.inc
+build_di_opt_args()
+{
+        DI_PASSES=""
+        for a in $*
+        do
+            LIB_FILE="$INSTALL_DIR/$a"
+            if [ -f "$LIB_FILE" ]; then
+                DI_PASSES+=" -load=$LIB_FILE"
+            fi
+            DI_PASSES+=$( echo " -$a" | awk -F . '{ print $1; }' )
+        done
+        # build_di_source_env
+        echo $INSTALL_DIR/di-opt $DI_PASSES $DI_PASS_ARGS $DI_EXTRA_PASS_ARGS
+}
+
+# copied from llvm-apps/apps/scripts/include/build.sh.inc
+build_di_args()
+{
+        echo $( build_di_env_args $* ) $( build_di_opt_args $* )
+}
+
+# copied from llvm-apps/apps/scripts/include/build.sh.inc
+# NOTE: this requires BUILD_RTLIB_32=ON in the cmake build options for dyninst
+build_di()
+{
+        local input=$1
+        local output=$2
+        shift; shift
+        build_llvm_cmd eval $( build_di_args $* ) -o $output $input
+}
+
+# copied from llvm-apps/apps/scripts/include/build.sh.inc
+build_bini()
+{
+        if [ $# -eq 0 ]; then
+            return
+        fi
+        if [ ${OUTPUT}.1 -ot ${OUTPUT} ]; then
+            cp ${OUTPUT} ${OUTPUT}.1
+        fi
+	build_di ${OUTPUT}.1 ${OUTPUT} $*
+        touch ${OUTPUT}.1
+}
+
 function check_args()
 {
    local llvmpass=
@@ -70,6 +131,11 @@ function check_args()
         do
 		llvmpass=$p
 		# Default value for llvmargs not specified deliberately
+
+		if [[ $llvmpass = *.[a-z]* ]]; then
+			BINI_ARGS+="$llvmpass"
+			continue
+		fi
 
 		if [ -f "${INSTALL_DIR}/${llvmpass}.so" ]; then
 			llvmpass_path="${INSTALL_DIR}/${llvmpass}.so"
@@ -105,6 +171,8 @@ check_current_dir
 # Arguments check
 check_args "$@"
 
+LLVMPASS="$@"
+
 if [ "$C" == "" ]; then
 	C="hello"
 fi 
@@ -113,14 +181,15 @@ if [ "${GENERATE_MAP}" != "" ] && [[ ${GENERATE_MAP} =~ [yY][eE][sS] ]]; then
         generate_modules_map
 fi
 
-: ${OPTFLAGS="-disable-opt -disable-internalize -disable-inlining -load ${MINIX_LLVM_DIR}/bin/weak-alias-module-override.so -weak-alias-module-override"}
+: ${OPTFLAGS="-disable-opt -disable-internalize -disable-inlining -load ${MINIX_LLVM_DIR}/bin/weak-alias-module-override.so -weak-alias-module-override ${OPTFLAGS_APPEND}"}
 
 # If we are really instrumenting with some pass...
 if [ "${LLVMPASS_PATHS}" != "" ]; then
 	OPTFLAGS=" ${OPTFLAGS} ${LLVMPASS_PATHS} ${LLVMARGS}"
+	OPTFLAGS=`echo "$OPTFLAGS " | sed -e "${OPTFLAGS_REPLACE_STRING}"`
 fi
 
-TARGET_MODULES=`echo $C | sed -e "s/,/ /g"`
+TARGET_MODULES=`echo " $C " | sed -e "s/,/ /g" -e "s/ rd / ramdisk memory /g"`
 
 for m in ${TARGET_MODULES}
 do
@@ -140,21 +209,32 @@ echo
 
 cd ${MINIX_ROOT}
 
+OPTFLAGS=`echo ${OPTFLAGS} | sed -e 's/\\$/$$/g'`
 for m in ${MINIX_MODS}
 do 
 	echo "Instrumenting $m ..."
+
 	n=`get_module_name $m`
 	if [ "" == "$n" ]; then
                 echo "Error: Couldn't fetch the module name for $m"
                 continue
         fi
+	if [ "$n" == "ramdisk" ] || [ "$n" == "memory" ]; then
+		(cd minix/llvm && C=$n ./relink.llvm)
+		continue
+	fi
 	clean_module $n $m
-	OPTFLAGS=`echo ${OPTFLAGS} | sed -e "s/\ /\\\ /g"`
-	OPTFLAGS_PLACEHOLDER="OPTFLAGS.$n=${OPTFLAGS}"
+
+	if [ "$n" == "vm" ] && [[ "$OPTFLAGS" =~ "-ltckpt" ]]; then
+		OPTFLAGS="$OPTFLAGS -ltckpt_vm"
+	fi
 	
-	(env "`echo ${OPTFLAGS_PLACEHOLDER}`" MKBITCODE=yes \
-	${TOOLDIR}/nbmake-${ARCH} -C $m all install && echo "INFO: $m successfully instrumented." ) || echo "ERROR: Failed instrumenting $m"
-	echo 
+	( ${TOOLDIR}/nbmake-${ARCH} -C $m all MKBITCODE=yes OPTFLAGS.$n="${OPTFLAGS}" \
+	    && OUTPUT="$DESTDIR/$m/$n" build_bini $BINI_ARGS \
+	    && ${TOOLDIR}/nbmake-${ARCH} -C $m install MKBITCODE=yes OPTFLAGS.$n="${OPTFLAGS}" \
+	    && echo "INFO: $m successfully instrumented."
+	)
+	echo
 done
 
 cd ${MYPWD}

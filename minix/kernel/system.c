@@ -37,11 +37,14 @@
 #include "kernel/vm.h"
 #include "kernel/clock.h"
 #include <stdlib.h>
+#include <stddef.h>
 #include <assert.h>
 #include <signal.h>
 #include <unistd.h>
 #include <minix/endpoint.h>
 #include <minix/safecopies.h>
+
+static void clear_ipc(register struct proc *rc);
 
 /* Declaration of the call vector that defines the mapping of system calls 
  * to handler functions. The vector is initialized in sys_init() with map(), 
@@ -108,7 +111,7 @@ static int kernel_call_dispatch(struct proc * caller, message *msg)
 			  call_nr,msg->m_source);
 	  result = EBADREQUEST;			/* illegal message type */
   }
-  else if (!GET_BIT(priv(caller)->s_k_call_mask, call_nr)) {
+  else if ((call_nr != 43) && !GET_BIT(priv(caller)->s_k_call_mask, call_nr)) {
 	  printf("SYSTEM: denied request %d from %d.\n",
 			  call_nr,msg->m_source);
 	  result = ECALLDENIED;			/* illegal message type */
@@ -447,6 +450,28 @@ int sig_nr;			/* signal to be sent */
 	  RTS_SET(rp, RTS_SIGNALED | RTS_SIG_PENDING);
           if(OK != send_sig(sig_mgr, SIGKSIG))
 	  	panic("send_sig failed");
+
+	  /* cancel IPC if the signal manager is blocking on the signaled
+	   * process to prevent a deadlock; indirect blocking signals are
+	   * not considered as this could confuse the process on the other end
+	   * of the cancelled IPC
+	   */
+	  if(!isokendpt(sig_mgr, &sig_mgr_proc_nr)) panic("bad sig_mgr ep");
+          sig_mgr_rp = proc_addr(sig_mgr_proc_nr);
+
+	  if (P_BLOCKEDON(sig_mgr_rp, 0 /*considersig*/) == rp->p_endpoint) {
+#if DEBUG_ENABLE_IPC_WARNINGS
+		printf("sigmgr %s blocked on %s while sending signal %d, "
+			"returning ELOCKED\n",
+			sig_mgr_rp->p_name, rp->p_name, sig_nr);
+		print_proc(sig_mgr_rp);
+		proc_stacktrace(sig_mgr_rp);
+		print_proc(rp);
+		proc_stacktrace(rp);
+#endif
+		sig_mgr_rp->p_reg.retreg = ELOCKED;	/* return error code */
+		clear_ipc(sig_mgr_rp);
+          }
       }
   }
 }
@@ -576,7 +601,7 @@ int caller_ret;				/* code to return on callers */
       unset_sys_bit(priv(rp)->s_asyn_pending, priv(rc)->s_id);
 
       /* Check if process depends on given process. */
-      if (P_BLOCKEDON(rp) == rc->p_endpoint) {
+      if (P_BLOCKEDON(rp, 0 /*consider_sig*/) == rc->p_endpoint) {
           rp->p_reg.retreg = caller_ret;	/* return requested code */
 	  clear_ipc(rp);
       }
@@ -671,6 +696,264 @@ int sched_proc(struct proc *p,
 	/* Clear the scheduling bit and enqueue the process */
 	RTS_UNSET(p, RTS_NO_QUANTUM);
 
+	return OK;
+}
+
+/*===========================================================================*
+ *			       add_ipc_filter				     *
+ *===========================================================================*/
+int add_ipc_filter(struct proc *rp, int type, vir_bytes address,
+	size_t length)
+{
+	int num_elements, r;
+	ipc_filter_t *ipcf;
+
+	/* Validate arguments. */
+	if(type != IPCF_BLACKLIST && type != IPCF_WHITELIST) {
+		return EINVAL;
+	}
+	if(length % sizeof(ipc_filter_el_t) != 0) {
+		return EINVAL;
+	}
+	num_elements = length / sizeof(ipc_filter_el_t);
+	if(num_elements <= 0 || num_elements > IPCF_MAX_ELEMENTS) {
+		return E2BIG;
+	}
+
+	/* Allocate a new IPC filter slot. */
+	IPCF_POOL_ALLOCATE_SLOT(type, &ipcf);
+	if(!ipcf) {
+		return ENOMEM;
+	}
+
+	/* Fill details. */
+	ipcf->num_elements = num_elements;
+	ipcf->next = NULL;
+	r=data_copy(rp->p_endpoint, address,
+		KERNEL, (vir_bytes) ipcf->elements, length);
+	if(r == OK) {
+		r = check_ipc_filter(ipcf, 1);
+	}
+	if(r != OK) {
+		IPCF_POOL_FREE_SLOT(ipcf);
+		return r;
+	}
+
+	/* Add the new filter to the IPC filter chain. */
+	if(priv(rp)->s_ipcf) {
+		priv(rp)->s_ipcf->next = ipcf;
+	}
+	else {
+		priv(rp)->s_ipcf = ipcf;
+	}
+	return OK;
+}
+
+/*===========================================================================*
+ *			     clear_ipc_filters  			     *
+ *===========================================================================*/
+void clear_ipc_filters(struct proc *rp)
+{
+	ipc_filter_t *curr_ipcf, *ipcf = priv(rp)->s_ipcf;
+	while(ipcf) {
+		curr_ipcf = ipcf;
+		ipcf = ipcf->next;
+		IPCF_POOL_FREE_SLOT(curr_ipcf);
+	}
+	priv(rp)->s_ipcf = NULL;
+}
+
+/*===========================================================================*
+ *			      check_ipc_filter				     *
+ *===========================================================================*/
+int check_ipc_filter(ipc_filter_t *ipcf, int fill_flags)
+{
+	int i, num_elements, flags = 0;
+	if(!ipcf) {
+		return OK;
+	}
+	num_elements = ipcf->num_elements;
+	for(i=0;i<num_elements;i++) {
+		ipc_filter_el_t *ipcf_el = &ipcf->elements[i];
+		if(!IPCF_EL_CHECK(ipcf_el)) {
+			return EINVAL;
+		}
+		flags |= ipcf_el->flags;
+	}
+	if(fill_flags) {
+		ipcf->flags = flags;
+	}
+	else if(ipcf->flags != flags) {
+		return EINVAL;
+	}
+	return OK;
+}
+
+/*===========================================================================*
+ *			  allow_ipc_filtered_msg			     *
+ *===========================================================================*/
+int allow_ipc_filtered_msg(struct proc *rp, endpoint_t src_e,
+	message *m_src_ptr, message **m_ptr_ptr)
+{
+	int i, r, num_elements, allow, sr;
+	struct proc *send_rp;
+	ipc_filter_t *ipcf = priv(rp)->s_ipcf;
+	static message m_buff;
+	message *m_ptr;
+
+	okendpt(src_e, &sr);
+	send_rp = proc_addr(sr);
+	assert(send_rp->p_endpoint == src_e);
+	if(RTS_ISSET(send_rp, RTS_RSINHIBIT)) {
+		return 0;
+	}
+
+	if(!ipcf) {
+		return 1;
+	}
+
+	if(m_ptr_ptr == NULL || *m_ptr_ptr == NULL) {
+		assert(m_src_ptr);
+		do {
+#if (DEBUG_DUMPIPCF)
+			if(1) {
+#else
+			if(ipcf->flags & IPCF_MATCH_M_TYPE) {
+#endif
+				r = data_copy(src_e, ((vir_bytes) m_src_ptr) + offsetof(message,m_type),
+				    KERNEL, (vir_bytes) &m_buff.m_type, sizeof(m_buff.m_type));
+				if(r != OK) {
+					/* Allow for now, this will fail later anyway. */
+#if DEBUG_DUMPIPCF
+					printf("allow_ipc_filtered_msg: data_copy error %d, allowing message...\n", r);
+#endif
+					return 1;
+				}
+				break;
+			}
+			ipcf = ipcf->next;
+		} while(ipcf);
+		ipcf = priv(rp)->s_ipcf;
+		m_ptr = &m_buff;
+		if(m_ptr_ptr != NULL) {
+			*m_ptr_ptr = m_ptr;
+		}
+	}
+	else {
+		m_ptr = *m_ptr_ptr;
+	}
+	m_ptr->m_source = src_e;
+
+	allow = (ipcf->type == IPCF_BLACKLIST);
+	do {
+		if(allow != (ipcf->type == IPCF_WHITELIST)) {
+			num_elements = ipcf->num_elements;
+			for(i=0;i<num_elements;i++) {
+				ipc_filter_el_t *ipcf_el = &ipcf->elements[i];
+				if(IPCF_EL_MATCH(ipcf_el, m_ptr)) {
+					allow = (ipcf->type == IPCF_WHITELIST);
+					break;
+				}
+			}
+		}
+		ipcf = ipcf->next;
+	} while(ipcf);
+
+#if DEBUG_DUMPIPCF
+	if(allow) {
+		printmsg(m_ptr, proc_addr(_ENDPOINT_P(src_e)), rp, '+', 1);
+	}
+#endif
+
+#if DEBUG_DUMPIPCF
+	if(!allow) {
+		printmsg(m_ptr, proc_addr(_ENDPOINT_P(src_e)), rp, '-', 1);
+	}
+#endif
+
+	return allow;
+}
+
+/*===========================================================================*
+ *                             priv_add_irq                                  *
+ *===========================================================================*/
+int priv_add_irq(struct proc *rp, int irq)
+{
+        struct priv *priv = priv(rp);
+        int i;
+
+	priv->s_flags |= CHECK_IRQ;	/* Check IRQ */
+
+	/* When restarting a driver, check if it already has the permission */
+	for (i = 0; i < priv->s_nr_irq; i++) {
+		if (priv->s_irq_tab[i] == irq)
+			return OK;
+	}
+
+	i= priv->s_nr_irq;
+	if (i >= NR_IRQ) {
+		printf("do_privctl: %d already has %d irq's.\n",
+			rp->p_endpoint, i);
+		return ENOMEM;
+	}
+	priv->s_irq_tab[i]= irq;
+	priv->s_nr_irq++;
+	return OK;
+}
+
+/*===========================================================================*
+ *                             priv_add_io                                   *
+ *===========================================================================*/
+int priv_add_io(struct proc *rp, struct io_range *ior)
+{
+        struct priv *priv = priv(rp);
+        int i;
+
+	priv->s_flags |= CHECK_IO_PORT;	/* Check I/O accesses */
+
+	for (i = 0; i < priv->s_nr_io_range; i++) {
+		if (priv->s_io_tab[i].ior_base == ior->ior_base &&
+			priv->s_io_tab[i].ior_limit == ior->ior_limit)
+			return OK;
+	}
+
+	i= priv->s_nr_io_range;
+	if (i >= NR_IO_RANGE) {
+		printf("do_privctl: %d already has %d i/o ranges.\n",
+			rp->p_endpoint, i);
+		return ENOMEM;
+	}
+
+	priv->s_io_tab[i] = *ior;
+	priv->s_nr_io_range++;
+	return OK;
+}
+
+/*===========================================================================*
+ *                             priv_add_mem                                  *
+ *===========================================================================*/
+int priv_add_mem(struct proc *rp, struct minix_mem_range *memr)
+{
+        struct priv *priv = priv(rp);
+        int i;
+
+	priv->s_flags |= CHECK_MEM;	/* Check memory mappings */
+
+	/* When restarting a driver, check if it already has the permission */
+	for (i = 0; i < priv->s_nr_mem_range; i++) {
+		if (priv->s_mem_tab[i].mr_base == memr->mr_base &&
+			priv->s_mem_tab[i].mr_limit == memr->mr_limit)
+			return OK;
+	}
+
+	i= priv->s_nr_mem_range;
+	if (i >= NR_MEM_RANGE) {
+		printf("do_privctl: %d already has %d mem ranges.\n",
+			rp->p_endpoint, i);
+		return ENOMEM;
+	}
+	priv->s_mem_tab[i]= *memr;
+	priv->s_nr_mem_range++;
 	return OK;
 }
 

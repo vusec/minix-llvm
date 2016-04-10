@@ -7,6 +7,7 @@ HERE=${.CURDIR}/arch/${MACHINE_ARCH}
 SRCS+=  \
         get_randomness.c \
         getidle.c \
+	hypermem-lowlevel.c \
         ser_putc.c \
         spin.c \
         sys_eniop.c \

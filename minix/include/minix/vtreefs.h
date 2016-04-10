@@ -11,7 +11,7 @@ typedef void *cbdata_t;
  * the name will be allocated statically. Longer names will be allocated
  * dynamically, and should not be used for system-critical file systems.
  */
-#define PNAME_MAX	24
+#define PNAME_MAX	256
 
 struct inode_stat {
 	mode_t mode;		/* file mode (type and permissions) */

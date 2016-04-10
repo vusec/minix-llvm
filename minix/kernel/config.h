@@ -44,6 +44,7 @@
 #define USE_MEMSET  	   1	/* write char to a given memory area */
 #define USE_RUNCTL         1	/* control stop flags of a process */
 #define USE_STATECTL       1	/* let a process control its state */
+#define USE_UPDATE         1	/* update a process into another */
 #define USE_MCONTEXT       1	/* enable getting/setting of machine context */
 
 #if defined(__arm__)

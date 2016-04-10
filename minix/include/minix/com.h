@@ -333,6 +333,7 @@
 #   define GET_CPUINFO    23    /* get information about cpus */
 #   define GET_REGS	  24	/* get general process registers */
 #   define GET_RUSAGE	  25	/* get resource usage */
+#   define GET_HYPERMEM	  26	/* get vaddr for hypermem communication area */
 
 /* Subfunctions for SYS_PRIVCTL */
 #define SYS_PRIV_ALLOW		1	/* Allow process to run */
@@ -346,6 +347,11 @@
 #define SYS_PRIV_QUERY_MEM	8	/* Verify memory privilege. */
 #define SYS_PRIV_UPDATE_SYS	9	/* Update a sys privilege structure. */
 #define SYS_PRIV_YIELD	       10	/* Allow process to run and suspend */
+#define SYS_PRIV_CLEAR_IPC_REFS 11	/* Clear pending IPC for the process */
+#define SYS_PRIV_GET_PRIV	12	/* Get priv info from the kernel */
+
+#define SYS_PRIV_SET_RS_READY	13	/* RS is/isn't ready for crashing. */
+#define SYS_PRIV_GET_RS_READY	14	/* Is RS ready to allow crashing? */
 
 /* Constants for exec. FIXME: these do not belong here. */
 #define PMEF_AUXVECTORS	20
@@ -429,9 +435,16 @@
 /* Field names for SYS_UPDATE. */
 #define SYS_UPD_SRC_ENDPT	m1_i1	/* source endpoint */
 #define SYS_UPD_DST_ENDPT	m1_i2	/* destination endpoint */
+#define SYS_UPD_FLAGS		m1_i3	/* update flags */
+#  define SYS_UPD_ROLLBACK        0x1	/* update is rollback */
+
 
 /* Subfunctions for SYS_STATECTL */
 #define SYS_STATE_CLEAR_IPC_REFS    1	/* clear IPC references */
+#define SYS_STATE_SET_STATE_TABLE   2	/* set state map */
+#define SYS_STATE_ADD_IPC_BL_FILTER 3	/* set IPC blacklist filter */
+#define SYS_STATE_ADD_IPC_WL_FILTER 4	/* set IPC whitelist filter */
+#define SYS_STATE_CLEAR_IPC_FILTERS 5	/* clear IPC filters */
 
 /* Subfunctions for SYS_SCHEDCTL */
 #  define SCHEDCTL_FLAG_KERNEL	1	/* mark kernel scheduler and remove 
@@ -457,7 +470,7 @@
 #define RS_SHUTDOWN	(RS_RQ_BASE + 4)	/* alert about shutdown */
 #define RS_UPDATE	(RS_RQ_BASE + 5)	/* update system service */
 #define RS_CLONE	(RS_RQ_BASE + 6)	/* clone system service */
-#define RS_EDIT		(RS_RQ_BASE + 7)	/* edit system service */
+#define RS_UNCLONE	(RS_RQ_BASE + 7)	/* unclone system service */
 
 #define RS_LOOKUP	(RS_RQ_BASE + 8)	/* lookup server name */
 
@@ -465,6 +478,20 @@
 
 #define RS_INIT 	(RS_RQ_BASE + 20)	/* service init message */
 #define RS_LU_PREPARE	(RS_RQ_BASE + 21)	/* prepare to update message */
+#define RS_EDIT         (RS_RQ_BASE + 22)       /* edit system service */
+#define RS_SYSCTL       (RS_RQ_BASE + 23)       /* perform system ctl action */
+#define RS_FI              (RS_RQ_BASE + 24)       /* inject fault into system service */
+
+/* Subfunctions for RS_SYSCTL. */
+#define RS_SYSCTL_SRV_STATUS    1
+#define RS_SYSCTL_UPD_START     2
+#define RS_SYSCTL_UPD_RUN       3
+#define RS_SYSCTL_UPD_STOP      4
+#define RS_SYSCTL_UPD_STATUS    5
+
+/* Subfunctions for RS_FI. */
+#define RS_FI_CRASH             1
+#define RS_FI_CUSTOM            2
 
 /*===========================================================================*
  *                Messages for the Data Store Server			     *
@@ -579,6 +606,23 @@
 
 /* Common fault injection ctl request to all processes. */
 #define COMMON_REQ_FI_CTL (COMMON_RQ_BASE+2)
+
+/* Common request to all processes: metadata. */
+#define COMMON_REQ_METADATA (COMMON_RQ_BASE+3)
+
+/* Common request to all processes: user upcall reply. */
+#define COMMON_REQ_UPCALL_REPLY (COMMON_RQ_BASE+4)
+
+/* Subfunctions for COMMON_REQ_METADATA. */
+#define MD_DATA_COUNT		0
+#define MD_SELEMENT_LOOKUP	1
+#define MD_MEMBERS_LOOKUP	2
+#define MD_PTD_ELEMENT_LOOKUP	3
+#define MD_UPDATE_FLAGS		4
+#define MD_SELEMENT_READ	5
+#define MD_SELEMENT_WRITE	6
+#define MD_UPDATE_POINTER	7
+#define MD_SELEMENT_TRUNCATE	8
 
 /*===========================================================================*
  *                Messages for VM server				     *
@@ -702,6 +746,11 @@
 #	define VM_RS_CTL_REQ		m1_i2
 #		define VM_RS_MEM_PIN	    0	/* pin memory */
 #		define VM_RS_MEM_MAKE_VM    1	/* make VM instance */
+#		define VM_RS_MEM_HEAP_PREALLOC 2 /* preallocate heap regions */
+#		define VM_RS_MEM_MAP_PREALLOC  3 /* preallocate mmaped regions */
+#		define VM_RS_MEM_GET_PREALLOC_MAP  4 /* get preallocated mmaped regions */
+#	define VM_RS_CTL_ADDR		m2_p1
+#	define VM_RS_CTL_LEN		m2_i3
 
 #define VM_WATCH_EXIT		(VM_RQ_BASE+43)
 

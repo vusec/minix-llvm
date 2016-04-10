@@ -58,20 +58,20 @@ service_get_policies(struct policies * pol, index_t slot)
 		/* iommu */
                 { .label = "amddev", .policy_str = "" },
 		/* net */
-		{ .label = "3c90x", .policy_str = "restart" },
-                { .label = "atl2", .policy_str = "restart" },
-                { .label = "dec21140A", .policy_str = "restart" },
-                { .label = "dp8390", .policy_str = "restart" },
-                { .label = "dpeth", .policy_str = "restart" },
-                { .label = "e1000", .policy_str = "restart" },
-                { .label = "fxp", .policy_str = "restart" },
-                { .label = "lance", .policy_str = "restart" },
-                { .label = "lan8710a", .policy_str = "restart" },
-                { .label = "orinoco", .policy_str = "restart" },
-                { .label = "rtl8139", .policy_str = "restart" },
-                { .label = "rtl8169", .policy_str = "restart" },
+		{ .label = "3c90x", .policy_str = "reset" },
+                { .label = "atl2", .policy_str = "reset" },
+                { .label = "dec21140A", .policy_str = "reset" },
+                { .label = "dp8390", .policy_str = "reset" },
+                { .label = "dpeth", .policy_str = "reset" },
+                { .label = "e1000", .policy_str = "reset" },
+                { .label = "fxp", .policy_str = "reset" },
+                { .label = "lance", .policy_str = "reset" },
+                { .label = "lan8710a", .policy_str = "reset" },
+                { .label = "orinoco", .policy_str = "reset" },
+                { .label = "rtl8139", .policy_str = "reset" },
+                { .label = "rtl8169", .policy_str = "reset" },
                 { .label = "uds", .policy_str = "reset" },
-                { .label = "virtio_net", .policy_str = "restart" },
+                { .label = "virtio_net", .policy_str = "reset" },
 		/* power */
                 { .label = "acpi", .policy_str = "" },
                 { .label = "tps65217", .policy_str = "" },
@@ -98,7 +98,7 @@ service_get_policies(struct policies * pol, index_t slot)
                 { .label = "random", .policy_str = "restart" },
 		/* tty */
                 { .label = "pty", .policy_str = "restart" },
-                { .label = "tty", .policy_str = "" },
+                { .label = "tty", .policy_str = "restart" },
 		/* usb */
                 { .label = "usbd", .policy_str = "" },
                 { .label = "usb_hub", .policy_str = "" },
@@ -112,25 +112,25 @@ service_get_policies(struct policies * pol, index_t slot)
                 { .label = "ext2", .policy_str = "" },
                 { .label = "hgfs", .policy_str = "" },
                 { .label = "isofs", .policy_str = "" },
-                { .label = "mfs", .policy_str = "" },
-                { .label = "pfs", .policy_str = "" },
-                { .label = "procfs", .policy_str = "" },
+                { .label = "mfs", .policy_str = "restart" },
+                { .label = "pfs", .policy_str = "restart" },
+                { .label = "procfs", .policy_str = "restart" },
 		{ .label = "ptyfs", .policy_str = "" },
                 { .label = "vbfs", .policy_str = "" },
 		/* net */
                 { .label = "inet", .policy_str = "reset" },
                 { .label = "lwip", .policy_str = "" },
 		/* servers */
-                { .label = "devman", .policy_str = "" },
-                { .label = "ds", .policy_str = "" },
+                { .label = "devman", .policy_str = "restart" },
+                { .label = "ds", .policy_str = "restart" },
                 { .label = "input", .policy_str = "reset" },
                 { .label = "ipc", .policy_str = "restart" },
                 { .label = "is", .policy_str = "restart" },
-                { .label = "pm", .policy_str = "" },
-                { .label = "rs", .policy_str = "" },
-                { .label = "sched", .policy_str = "" },
-                { .label = "vfs", .policy_str = "" },
-                { .label = "vm", .policy_str = "" },
+                { .label = "pm", .policy_str = "restart" },
+                { .label = "rs", .policy_str = "restart" },
+                { .label = "sched", .policy_str = "restart" },
+                { .label = "vfs", .policy_str = "restart" },
+                { .label = "vm", .policy_str = "restart" },
 		//{ .label = "", .policy_str = "" },
 	};
 
@@ -153,6 +153,30 @@ service_get_policies(struct policies * pol, index_t slot)
 #endif
 
 	return pol[slot].formatted;
+}
+
+/* Returns a ASCIIZ string encoding RS flags.  */
+static const char *
+service_get_flags(index_t slot)
+{
+	static char str[10];
+	int flags, sys_flags;
+
+	flags = rproc.proc[slot].r_flags;
+	sys_flags = rproc.pub[slot].sys_flags;
+
+	str[0] = (flags & RS_ACTIVE)        ? 'A' : '-';
+	str[1] = (flags & RS_UPDATING)      ? 'U' : '-';
+	str[2] = (flags & RS_EXITING)       ? 'E' : '-';
+	str[3] = (flags & RS_NOPINGREPLY)   ? 'N' : '-';
+	str[4] = (sys_flags & SF_USE_COPY)  ? 'C' : '-';
+	str[5] = (sys_flags & SF_USE_REPL)  ? 'R' : '-';
+	str[6] = (sys_flags & SF_NEED_COPY) ? 'c' : '-';
+	str[7] = (sys_flags & SF_NEED_REPL) ? 'r' : '-';
+	str[8] = (sys_flags & SF_CORE_SRV)  ? 's' : '-';
+	str[9] = '\0';
+
+	return str;
 }
 
 /*
@@ -306,5 +330,6 @@ service_read(struct inode * node)
 	buf_printf("endpoint: %d\n", rpub->endpoint);
 	buf_printf("pid:      %d\n", rp->r_pid);
 	buf_printf("restarts: %d\n", rp->r_restarts);
+	buf_printf("flags:    %s\n", service_get_flags(slot));
 	buf_printf("policies: %s\n", service_get_policies(policies, slot));
 }

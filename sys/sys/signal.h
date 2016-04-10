@@ -261,6 +261,7 @@ __END_DECLS
  */
 /* Signals delivered by a signal manager. */
 
+#define SIGUPCALL       69    /* upcall notification */
 #define SIGSNDELAY      70    /* end of delay for signal delivery */
 
 #define SIGS_FIRST       SIGHUP      /* first system signal */

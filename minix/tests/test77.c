@@ -20,7 +20,8 @@
 #include <fcntl.h>
 #include <util.h>
 
-#define ITERATIONS 10
+#define ITERATIONS_FULL  10
+#define ITERATIONS_QUICK  1
 
 #define MIN_PTYS 4
 
@@ -1133,7 +1134,7 @@ main(int argc, char **argv)
 	else
 		m = 0xFF;
 
-	for (i = 0; i < ITERATIONS; i++) {
+	for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 		if (m & 0x01) test77a();
 		if (m & 0x02) test77b();
 		if (m & 0x04) test77c();

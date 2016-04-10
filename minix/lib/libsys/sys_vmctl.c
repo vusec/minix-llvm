@@ -97,3 +97,8 @@ int sys_vmctl_reply_mapping(int index, vir_bytes addr)
 
 	return _kernel_call(SYS_VMCTL, &m);
 }
+
+int sys_vmctl_flushtlb()
+{
+	return sys_vmctl(SELF, VMCTL_FLUSHTLB, 0);
+}

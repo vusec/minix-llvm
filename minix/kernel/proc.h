@@ -96,7 +96,7 @@ struct proc {
 #define VMSTYPE_MAP		3
 
 	int		type;		/* suspended operation */
-	union {
+	union ixfer_saved{
 		/* VMSTYPE_SYS_MESSAGE */
 		message		reqmsg;	/* suspended request message */
 	} saved;
@@ -104,7 +104,7 @@ struct proc {
 	/* Parameters of request to VM */
 	int		req_type;
 	endpoint_t	target;
-	union {
+	union ixfer_params{
 		struct {
 			vir_bytes 	start, length;	/* memory range */
 			u8_t		writeflag;	/* nonzero for write access */
@@ -161,6 +161,7 @@ struct proc {
 				   should be enqueued at the end of some run
 				   queue again */
 #define RTS_BOOTINHIBIT	0x10000	/* not ready until VM has made it */
+#define RTS_RSINHIBIT	0x20000	/* everybody quiet, RS working on restart */
 
 /* A process is runnable iff p_rts_flags == 0. */
 #define rts_f_is_runnable(flg)	((flg) == 0)
@@ -180,8 +181,11 @@ struct proc {
  * check RTS_SENDING first, and then RTS_RECEIVING, as they could
  * both be on (if a ipc_sendrec() blocks on sending), and p_getfrom_e
  * could be nonsense even though RTS_RECEIVING is on.
+ *
+ * consider_sig: if non-zero, processes with a pending signal are considered to
+ * block on the signal manager
  */
-#define P_BLOCKEDON(p)							\
+#define P_BLOCKEDON(p, consider_sig)							\
 	(								\
 		((p)->p_rts_flags & RTS_SENDING) ? 			\
 		(p)->p_sendto_e : 					\
@@ -189,6 +193,8 @@ struct proc {
 			(						\
 				((p)->p_rts_flags & RTS_RECEIVING) ?	\
 				(p)->p_getfrom_e : 			\
+				((consider_sig) && ((p)->p_rts_flags & RTS_SIG_PENDING)) ? \
+				priv((p))->s_sig_mgr :			\
 				NONE					\
 			) 						\
 		)							\
@@ -255,6 +261,7 @@ struct proc {
 				    because of VM modifying the sender's address
 				    space*/
 #define MF_STEP		 0x40000 /* Single-step process */
+#define MF_MSGFAILED	 0x80000
 
 /* Magic process table addresses. */
 #define BEG_PROC_ADDR (&proc[0])

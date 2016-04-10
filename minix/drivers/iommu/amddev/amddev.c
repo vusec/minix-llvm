@@ -102,10 +102,6 @@ static void sef_local_startup()
   sef_setcb_init_lu(sef_cb_init_fresh);
   sef_setcb_init_restart(sef_cb_init_fresh);
 
-  /* Register live update callbacks. */
-  sef_setcb_lu_prepare(sef_cb_lu_prepare_always_ready);
-  sef_setcb_lu_state_isvalid(sef_cb_lu_state_isvalid_standard);
-
 #if 0
   /* Register signal callbacks. */
   sef_setcb_signal_handler(sef_cb_signal_handler);
@@ -170,7 +166,10 @@ static void sef_cb_signal_handler(int signo)
 	phys_bytes base, size;
 
 	/* Only check for termination signal, ignore anything else. */
-	if (signo != SIGTERM) return;
+	if (signo != SIGTERM) {
+		SEF_SIGNAL_HANDLE_DEFAULT(signo);
+		return;
+	}
 
 	for (;;)
 	{

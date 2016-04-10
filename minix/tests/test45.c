@@ -8,8 +8,12 @@
 #pragma clang diagnostic ignored "-Wtautological-compare"
 #endif
 
+static int quicktest;
 int max_error = 4;
 #include "common.h"
+
+static int quickbases[] = { 2, 3, 8, 10, 16, 36 };
+#define QUICKBASES_COUNT 6
 
 
 /* test strtol */
@@ -51,6 +55,7 @@ int max_error = 4;
 int main(int argc, char **argv)
 {
 	start(45);
+	quicktest = get_setting_quick_test();
 
 	/* run long/unsigned long tests */
 	test_strtol();

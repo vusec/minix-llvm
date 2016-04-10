@@ -17,7 +17,8 @@
 #include <stdio.h>
 #include <setjmp.h>
 
-#define ITERATIONS        4
+#define ITERATIONS_FULL  4
+#define ITERATIONS_QUICK 1
 int max_error = 3;
 #include "common.h"
 
@@ -67,7 +68,7 @@ char *argv[];
 
   start(7);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 00001) timed_test(test7a);
 	if (m & 00002) timed_test(test7b);
 	if (m & 00004) timed_test(test7c);

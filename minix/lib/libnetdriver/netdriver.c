@@ -578,8 +578,10 @@ static void
 got_signal(int sig)
 {
 
-	if (sig != SIGTERM)
+	if (sig != SIGTERM) {
+		SEF_SIGNAL_HANDLE_DEFAULT(sig);
 		return;
+	}
 
 	netdriver_terminate();
 }
@@ -595,7 +597,6 @@ netdriver_task(const struct netdriver * ndp)
 
 	/* Perform SEF initialization. */
 	sef_setcb_init_fresh(do_init);
-	sef_setcb_init_restart(do_init);	/* TODO: revisit this */
 	sef_setcb_signal_handler(got_signal);
 
 	netdriver_table = ndp;

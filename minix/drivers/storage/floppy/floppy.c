@@ -283,7 +283,7 @@ static void sef_local_startup(void);
 static int sef_cb_init_fresh(int type, sef_init_info_t *info);
 static void sef_cb_signal_handler(int signo);
 EXTERN int sef_cb_lu_prepare(int state);
-EXTERN int sef_cb_lu_state_isvalid(int state);
+EXTERN int sef_cb_lu_state_isvalid(int state, int flags);
 EXTERN void sef_cb_lu_state_dump(int state);
 int last_was_write;
 
@@ -308,7 +308,6 @@ static void sef_local_startup(void)
 {
   /* Register init callbacks. */
   sef_setcb_init_fresh(sef_cb_init_fresh);
-  sef_setcb_init_lu(sef_cb_init_fresh);
 
   /* Register live update callbacks. */
   sef_setcb_lu_prepare(sef_cb_lu_prepare);
@@ -335,7 +334,7 @@ static int sef_cb_init_fresh(int type, sef_init_info_t *UNUSED(info))
   system_hz = sys_hz();
 
   if(!(floppy_buf = alloc_contig(2*DMA_BUF_SIZE,
-	AC_LOWER16M | AC_ALIGN4K, &floppy_buf_phys)))
+	AC_LOWER16M | AC_ALIGN4K | AC_NORELOC, &floppy_buf_phys)))
   	panic("couldn't allocate dma buffer");
 
   init_timer(&f_tmr_timeout);
@@ -370,7 +369,10 @@ static void sef_cb_signal_handler(int signo)
   int s;
 
   /* Only check for termination signal, ignore anything else. */
-  if (signo != SIGTERM) return;
+  if (signo != SIGTERM) {
+      SEF_SIGNAL_HANDLE_DEFAULT(signo);
+      return;
+  }
 
   /* Stop all activity and cleanly exit with the system. */
   if ((s=sys_outb(DOR, ENABLE_INT)) != OK)

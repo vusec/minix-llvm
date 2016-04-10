@@ -35,7 +35,10 @@ static int sef_cb_init_fresh(int __unused type,
 static void sef_cb_signal_handler(int signo)
 {
 	/* Only check for termination signal, ignore anything else. */
-	if (signo != SIGTERM) return;
+	if (signo != SIGTERM) {
+		SEF_SIGNAL_HANDLE_DEFAULT(signo);
+		return;
+	}
 
 	fsdriver_terminate();
 }
@@ -44,9 +47,7 @@ static void sef_local_startup(void)
 {
 	/* Register init callbacks. */
 	sef_setcb_init_fresh(sef_cb_init_fresh);
-	sef_setcb_init_restart(sef_cb_init_fail);
-
-	/* No live update support for now. */
+	sef_setcb_init_restart(SEF_CB_INIT_RESTART_STATEFUL);
 
 	/* Register signal callbacks. */
 	sef_setcb_signal_handler(sef_cb_signal_handler);

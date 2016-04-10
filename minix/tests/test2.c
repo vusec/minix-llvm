@@ -10,7 +10,8 @@
 #include <time.h>
 #include <stdio.h>
 
-#define ITERATIONS 5
+#define ITERATIONS_FULL  5
+#define ITERATIONS_QUICK 1
 int max_error = 4;
 #include "common.h"
 
@@ -38,7 +39,7 @@ char *argv[];
 
   start(2);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	iteration = i;
 	if (m & 0001) test2a();
 	if (m & 0002) test2b();
@@ -49,7 +50,7 @@ char *argv[];
 	if (m & 0100) test2g();
   }
   subtest = 100;
-  if (cumsig != ITERATIONS) e(101);
+  if (cumsig != ITERATIONS_ADAPTIVE) e(101);
   quit();
   return(-1);			/* impossible */
 }

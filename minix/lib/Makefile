@@ -18,6 +18,7 @@ SUBDIR+=	libinputdriver
 SUBDIR+=	libminc
 SUBDIR+=	libminixfs
 SUBDIR+=	libnetdriver
+SUBDIR+=        libprox
 SUBDIR+=	libsffs
 SUBDIR+=	libtimers
 SUBDIR+=	libusb

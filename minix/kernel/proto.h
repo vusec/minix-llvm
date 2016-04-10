@@ -13,6 +13,7 @@
 
 /* Struct declarations. */
 struct proc;
+struct ipc_filter_s;
 
 /* clock.c */
 clock_t get_realtime(void);
@@ -58,6 +59,9 @@ int has_pending_notify(struct proc * caller, int src_p);
 int has_pending_asend(struct proc * caller, int src_p);
 void unset_notify_pending(struct proc * caller, int src_p);
 int mini_notify(const struct proc *src, endpoint_t dst);
+void vm_suspend(struct proc *caller, const struct proc *target,
+        const vir_bytes linaddr, const vir_bytes len, const int type,
+        const int writeflag);
 void enqueue(struct proc *rp);
 void dequeue(struct proc *rp);
 void switch_to_user(void);
@@ -100,6 +104,15 @@ void clear_endpoint(struct proc *rc);
 void clear_ipc_refs(struct proc *rc, int caller_ret);
 void kernel_call_resume(struct proc *p);
 int sched_proc(struct proc *rp, int priority, int quantum, int cpu);
+int add_ipc_filter(struct proc *rp, int type,
+    vir_bytes address, size_t length);
+void clear_ipc_filters(struct proc *rp);
+int check_ipc_filter(struct ipc_filter_s *ipcf, int fill_flags);
+int allow_ipc_filtered_msg(struct proc *rp, endpoint_t src_e,
+    message *m_src_ptr, message **m_ptr_ptr);
+int priv_add_irq(struct proc *rp, int irq);
+int priv_add_io(struct proc *rp, struct io_range *ior);
+int priv_add_mem(struct proc *rp, struct minix_mem_range *memr);
 
 /* system/do_vtimer.c */
 void vtimer_check(struct proc *rp);
@@ -128,6 +141,8 @@ char *schedulerstr(struct proc *scheduler);
 void print_proc(struct proc *pp);
 /* prints the given process and recursively all processes it depends on */
 void print_proc_recursive(struct proc *pp);
+void printmsg(message *msg, struct proc *src, struct proc *dst, 
+    char operation, int printparams);
 #if DEBUG_IPC_HOOK
 void hook_ipc_msgrecv(message *msg, struct proc *src, struct proc *dst);
 void hook_ipc_msgsend(message *msg, struct proc *src, struct proc *dst);
@@ -160,12 +175,16 @@ void phys_copy_fault_in_kernel(void);
 void memset_fault(void);
 void memset_fault_in_kernel(void);
 #define virtual_copy(src, dst, bytes) \
-				virtual_copy_f(NULL, src, dst, bytes, 0)
+				virtual_copy_f(NULL, src, dst, bytes, 0, 0)
+#define virtual_copy_nopanic(src, dst, bytes) \
+				virtual_copy_f(NULL, src, dst, bytes, 0, 1)
 #define virtual_copy_vmcheck(caller, src, dst, bytes) \
-				virtual_copy_f(caller, src, dst, bytes, 1)
+				virtual_copy_f(caller, src, dst, bytes, 1, 0)
 int virtual_copy_f(struct proc * caller, struct vir_addr *src, struct
-	vir_addr *dst, vir_bytes bytes, int vmcheck);
+	vir_addr *dst, vir_bytes bytes, int vmcheck, int nopanic);
 int data_copy(endpoint_t from, vir_bytes from_addr, endpoint_t to,
+	vir_bytes to_addr, size_t bytes);
+int data_copy_nopanic(endpoint_t from, vir_bytes from_addr, endpoint_t to,
 	vir_bytes to_addr, size_t bytes);
 int data_copy_vmcheck(struct proc *, endpoint_t from, vir_bytes
 	from_addr, endpoint_t to, vir_bytes to_addr, size_t bytes);
@@ -203,7 +222,6 @@ int vm_lookup(const struct proc *proc, vir_bytes virtual, phys_bytes
 	*result, u32_t *ptent);
 size_t vm_lookup_range(const struct proc *proc,
        vir_bytes vir_addr, phys_bytes *phys_addr, size_t bytes);
-void delivermsg(struct proc *target);
 void arch_do_syscall(struct proc *proc);
 int arch_phys_map(int index, phys_bytes *addr, phys_bytes *len, int
 	*flags);

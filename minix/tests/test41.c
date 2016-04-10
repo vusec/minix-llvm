@@ -15,7 +15,8 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define ITERATIONS 3
+#define ITERATIONS_FULL  3
+#define ITERATIONS_QUICK 1
 int max_error = 4;
 #include "common.h"
 
@@ -92,7 +93,7 @@ char **argv;
   if (argc >= 2) m = atoi(argv[1]);
   if (argc >= 3) n = atoi(argv[2]);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
   	if (n & 1) test(m, ITIMER_REAL);
   	if (n & 2) test(m, ITIMER_VIRTUAL);
   	if (n & 4) test(m, ITIMER_PROF);

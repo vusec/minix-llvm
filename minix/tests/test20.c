@@ -134,7 +134,7 @@ void test20d()
   switch (fork()) {
       case -1:	printf("Can't fork\n");	break;
       case 0:
-	alarm(20);
+	alarm(200);
 
 	/* Lock fd8. */
 	fl.l_type = F_WRLCK;
@@ -194,7 +194,7 @@ void test20d()
   switch (fork()) {
       case -1:	printf("Can't fork\n");	break;
       case 0:
-	alarm(20);
+	alarm(200);
 
 	/* Lock fd8. */
 	fl.l_type = F_WRLCK;

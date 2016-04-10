@@ -21,7 +21,8 @@
 int max_error = 	4;
 #include "common.h"
 
-#define ITERATIONS      3
+#define ITERATIONS_FULL  3
+#define ITERATIONS_QUICK 1
 #define BUF_SIZE 1024
 
 #define System(cmd)	if (system(cmd) != 0) printf("``%s'' failed\n", cmd)
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
   superuser = (geteuid() == 0);
   umask(0000);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 0001) test38a();
 	if (m & 0002) test38b();
 	if (m & 0004) test38c();

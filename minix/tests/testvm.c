@@ -141,7 +141,7 @@ int
 main(int argc, char *argv[])
 {
 	struct info info;
-	int big;
+	int big, quicktest, iter;
 	u32_t totalmem, freemem, cachedmem;
 
 	progname = argv[0];
@@ -151,6 +151,7 @@ main(int argc, char *argv[])
 	pipefilename=argv[1];
 
 	big = !!strstr(pipefilename, "big");
+	quicktest = !!strstr(pipefilename, "quick");
 
 	init();
 
@@ -165,9 +166,10 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if(dotest(PAGE_SIZE,       10, 3)) { e(11); exit(1); } 
-	if(dotest(PAGE_SIZE,     1000, 3)) { e(11); exit(1); } 
-	if(dotest(PAGE_SIZE,    50000, 3)) { e(11); exit(1); } 
+	iter = quicktest ? 1 : 3;
+	if(dotest(PAGE_SIZE,       10, quicktest)) { e(11); exit(1); }
+	if(dotest(PAGE_SIZE,     1000, quicktest)) { e(11); exit(1); }
+	if(dotest(PAGE_SIZE,    50000, quicktest)) { e(11); exit(1); }
 	if(big) {
 		getmem(&totalmem, &freemem, &cachedmem);
 		if(dotest(PAGE_SIZE, totalmem*1.5, 3)) { e(11); exit(1); } 

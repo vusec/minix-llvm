@@ -67,6 +67,9 @@ int mq_enqueue(device_id_t device_id, const message *mess,
 
   STAILQ_INSERT_TAIL(&queue[device_id], cell, next);
 
+  /* No longer handling this message. */
+  sef_handle_message(NULL, 0);
+
   return TRUE;
 }
 
@@ -92,6 +95,9 @@ int mq_dequeue(device_id_t device_id, message *mess, int *ipc_status)
   *ipc_status = cell->ipc_status;
 
   STAILQ_INSERT_HEAD(&free_list, cell, next);
+
+  /* Pretty safe to assume we will be handling this message now. */
+  sef_handle_message(mess, *ipc_status);
 
   return TRUE;
 }

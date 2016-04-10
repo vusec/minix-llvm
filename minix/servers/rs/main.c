@@ -22,11 +22,14 @@ static void catch_boot_init_ready(endpoint_t endpoint);
 static void get_work(message *m_ptr, int *status_ptr);
 
 /* SEF functions and variables. */
-static void sef_local_startup(void);
-static int sef_cb_init_fresh(int type, sef_init_info_t *info);
-static void sef_cb_signal_handler(int signo);
-static int sef_cb_signal_manager(endpoint_t target, int signo);
-
+static void sef_local_startup(void); /* depends on VM, PM, VFS and DS */
+static int sef_cb_init_fresh(int type, sef_init_info_t *info); /* depends on VM, PM and DS */
+static int sef_cb_init_restart(int type, sef_init_info_t *info); /* depends on VM, PM and DS */
+static int sef_cb_init_lu(int type, sef_init_info_t *info); /* depends on VM */
+static int sef_cb_init_response(message *m_ptr); /* depends on VM, PM and DS */
+static int sef_cb_lu_response(message *m_ptr); /* depends on VM, PM and DS */
+static void sef_cb_signal_handler(int signo); /* depends on VM, PM and DS */
+static int sef_cb_signal_manager(endpoint_t target, int signo); /* depends on VM, PM, VFS, DS, devman and PCI */
 
 /*===========================================================================*
  *				main                                         *
@@ -44,8 +47,8 @@ int main(void)
   int s;
 
   /* SEF local startup. */
-  sef_local_startup();
-  
+  sef_local_startup(); /* depends on VM, PM, VFS and DS */
+
   if (OK != (s=sys_getmachine(&machine)))
 	  panic("couldn't get machine info: %d", s);
 
@@ -54,6 +57,8 @@ int main(void)
 
   /* Main loop - get work and do it, forever. */         
   while (TRUE) {              
+      /* Perform sensitive background operations when RS is idle. */
+      rs_idle_period(); /* depends on VM, PM and DS */
 
       /* Wait for request message. */
       get_work(&m, &ipc_status);
@@ -77,7 +82,7 @@ int main(void)
       if (is_ipc_notify(ipc_status)) {
           switch (who_p) {
           case CLOCK:
-	      do_period(&m);			/* check services status */
+	      do_period(&m);			/* check services status */ /* depends on VM, PM and DS */
 	      continue;
 	  default:				/* heartbeat notification */
 	      if (rproc_ptr[who_p] != NULL) {	/* mark heartbeat time */ 
@@ -96,19 +101,22 @@ int main(void)
           /* Handler functions are responsible for permission checking. */
           switch(call_nr) {
           /* User requests. */
-	  case RS_UP:		result = do_up(&m);		break;
-          case RS_DOWN: 	result = do_down(&m); 		break;
-          case RS_REFRESH: 	result = do_refresh(&m); 	break;
-          case RS_RESTART: 	result = do_restart(&m); 	break;
-          case RS_SHUTDOWN: 	result = do_shutdown(&m); 	break;
-          case RS_UPDATE: 	result = do_update(&m); 	break;
-          case RS_CLONE: 	result = do_clone(&m); 		break;
-          case RS_EDIT: 	result = do_edit(&m); 		break;
-          case RS_GETSYSINFO:	result = do_getsysinfo(&m); 	break;
+	  case RS_UP:		result = do_up(&m);		break; /* depends on VM, PM, VFS, DS, devman and PCI */
+          case RS_DOWN: 	result = do_down(&m); 		break; /* depends on VM, PM, DS, devman and PCI */
+          case RS_REFRESH: 	result = do_refresh(&m); 	break; /* depends on PM */
+          case RS_RESTART: 	result = do_restart(&m); 	break; /* depends on VM, PM and DS */
+          case RS_SHUTDOWN: 	result = do_shutdown(&m); 	break; /* depends on PM */
+          case RS_UPDATE: 	result = do_update(&m); 	break; /* depends on VM, PM and DS */
+          case RS_CLONE: 	result = do_clone(&m); 		break; /* depends on VM, PM and DS */
+	  case RS_UNCLONE: 	result = do_unclone(&m);	break; /* depends on VM, PM and DS */
+          case RS_EDIT: 	result = do_edit(&m); 		break; /* depends on VM, PM and DS */
+	  case RS_SYSCTL:	result = do_sysctl(&m);		break; /* depends on VM, PM and DS */
+	  case RS_FI:		result = do_fi(&m);		break; /* depends on PM */
+          case RS_GETSYSINFO:  result = do_getsysinfo(&m);     break;
 	  case RS_LOOKUP:	result = do_lookup(&m);		break;
 	  /* Ready messages. */
-	  case RS_INIT: 	result = do_init_ready(&m); 	break;
-	  case RS_LU_PREPARE: 	result = do_upd_ready(&m); 	break;
+	  case RS_INIT: 	result = do_init_ready(&m); 	break; /* depends on VM, PM and DS */
+	  case RS_LU_PREPARE: 	result = do_upd_ready(&m); 	break; /* depends on VM, PM and DS */
           default: 
               printf("RS: warning: got unexpected request %d from %d\n",
                   m.m_type, m.m_source);
@@ -127,19 +135,20 @@ int main(void)
 /*===========================================================================*
  *			       sef_local_startup			     *
  *===========================================================================*/
-static void sef_local_startup()
+static void sef_local_startup() /* depends on VM, PM, VFS and DS */
 {
   /* Register init callbacks. */
-  sef_setcb_init_response(do_init_ready);
-  sef_setcb_init_fresh(sef_cb_init_fresh);
-  sef_setcb_init_restart(sef_cb_init_fail);
+  sef_setcb_init_fresh(sef_cb_init_fresh); /* depends on VM, PM and DS */
+  sef_setcb_init_restart(sef_cb_init_restart); /* depends on VM, PM and DS */
+  sef_setcb_init_lu(sef_cb_init_lu); /* depends on VM */
 
-  /* Register live update callbacks. */
-  sef_setcb_lu_response(do_upd_ready);
+  /* Register response callbacks. */
+  sef_setcb_init_response(sef_cb_init_response); /* depends on VM, PM and DS */
+  sef_setcb_lu_response(sef_cb_lu_response); /* depends on VM, PM and DS */
 
   /* Register signal callbacks. */
-  sef_setcb_signal_handler(sef_cb_signal_handler);
-  sef_setcb_signal_manager(sef_cb_signal_manager);
+  sef_setcb_signal_handler(sef_cb_signal_handler); /* depends on VM, PM and DS */
+  sef_setcb_signal_manager(sef_cb_signal_manager); /* depends on VM, PM, VFS, DS, devman and PCI */
 
   /* Let SEF perform startup. */
   sef_startup();
@@ -148,18 +157,21 @@ static void sef_local_startup()
 /*===========================================================================*
  *		            sef_cb_init_fresh                                *
  *===========================================================================*/
-static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
+static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info)) /* depends on VM, PM and DS */
 {
 /* Initialize the reincarnation server. */
   struct boot_image *ip;
   int s,i;
   int nr_image_srvs, nr_image_priv_srvs, nr_uncaught_init_srvs;
   struct rproc *rp;
+  struct rproc *replica_rp;
   struct rprocpub *rpub;
   struct boot_image image[NR_BOOT_PROCS];
   struct boot_image_priv *boot_image_priv;
   struct boot_image_sys *boot_image_sys;
   struct boot_image_dev *boot_image_dev;
+  int pid, replica_pid;
+  endpoint_t replica_endpoint;
   int ipc_to;
   int *calls;
   int all_c[] = { ALL_C, NULL_C };
@@ -179,7 +191,7 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
   }
 
   /* Initialize some global variables. */
-  rupdate.flags = 0;
+  RUPDATE_INIT();
   shutting_down = FALSE;
 
   /* Get a copy of the boot image table. */
@@ -219,8 +231,11 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
   /* Reset the system process table. */
   for (rp=BEG_RPROC_ADDR; rp<END_RPROC_ADDR; rp++) {
       rp->r_flags = 0;
+      rp->r_init_err = ERESTART;
       rp->r_pub = &rprocpub[rp - rproc];
       rp->r_pub->in_use = FALSE;
+      rp->r_pub->old_endpoint = NONE;
+      rp->r_pub->new_endpoint = NONE;
   }
 
   /* Initialize the system process table in 4 steps, each of them following
@@ -254,6 +269,7 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
       
       /* Initialize privilege bitmaps and signal manager. */
       rp->r_priv.s_flags = boot_image_priv->flags;          /* priv flags */
+      rp->r_priv.s_init_flags = SRV_OR_USR(rp, SRV_I, USR_I); /* init flags */
       rp->r_priv.s_trap_mask= SRV_OR_USR(rp, SRV_T, USR_T); /* traps */
       ipc_to = SRV_OR_USR(rp, SRV_M, USR_M);                /* targets */
       fill_send_mask(&rp->r_priv.s_ipc_to, ipc_to == ALL_M);
@@ -345,7 +361,7 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
       /* RS/VM are already running as we speak. */
       if(boot_image_priv->endpoint == RS_PROC_NR ||
          boot_image_priv->endpoint == VM_PROC_NR) {
-          if ((s = init_service(rp, SEF_INIT_FRESH)) != OK) {
+          if ((s = init_service(rp, SEF_INIT_FRESH, rp->r_priv.s_init_flags)) != OK) {
               panic("unable to initialize %d: %d", boot_image_priv->endpoint, s);
           }
           /* VM will still send an RS_INIT message, though. */
@@ -367,7 +383,7 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
        * back to us here at boot time.
        */
       if(boot_image_priv->flags & SYS_PROC) {
-          if ((s = init_service(rp, SEF_INIT_FRESH)) != OK) {
+          if ((s = init_service(rp, SEF_INIT_FRESH, rp->r_priv.s_init_flags)) != OK) {
               panic("unable to initialize service: %d", s);
           }
           if(rpub->sys_flags & SF_SYNCH_BOOT) {
@@ -406,7 +422,7 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
       rpub = rp->r_pub;
 
       /* Get pid from PM. */
-      rp->r_pid = getnpid(rpub->endpoint);
+      rp->r_pid = RSCHECK_ERR(getnpid(rpub->endpoint)); /* sendrec to PM */
       if(rp->r_pid < 0) {
           panic("unable to get pid: %d", rp->r_pid);
       }
@@ -426,13 +442,15 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
   }
 
   /* Fork a new RS instance with root:operator. */
-  pid = srv_fork(0, 0);
+  pid = RSCHECK_ERR(srv_fork(0, 0)); /* sendrec to PM */
   if(pid < 0) {
       panic("unable to fork a new RS instance: %d", pid);
   }
-  replica_pid = pid ? pid : getpid();
-  if ((s = getprocnr(replica_pid, &replica_endpoint)) != 0)
+  replica_pid = pid ? pid : RSCHECK_INT(getpid()); /* sendrec to PM */
+  if ((s = getprocnr(replica_pid, &replica_endpoint)) != 0) { /* sendrec to PM */
+	RSCHECK_ERR(s);
 	panic("unable to get replica endpoint: %d", s);
+  }
   replica_rp->r_pid = replica_pid;
   replica_rp->r_pub->endpoint = replica_endpoint;
 
@@ -440,17 +458,18 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
       /* New RS instance running. */
 
       /* Live update the old instance into the new one. */
-      s = update_service(&rp, &replica_rp, RS_SWAP);
+      s = update_service(&rp, &replica_rp, RS_SWAP, 0); /* depends on VM */
       if(s != OK) {
           panic("unable to live update RS: %d", s);
       }
       cpf_reload();
 
       /* Clean up the old RS instance, the new instance will take over. */
-      cleanup_service(rp);
+      cleanup_service(rp); /* depends on VM, PM and DS */
 
       /* Ask VM to pin memory for the new RS instance. */
-      if((s = vm_memctl(RS_PROC_NR, VM_RS_MEM_PIN)) != OK) {
+      if((s = vm_memctl(RS_PROC_NR, VM_RS_MEM_PIN, 0, 0)) != OK) { /* sendrec to VM */
+	  RSCHECK_ERR(s);
           panic("unable to pin memory for the new RS instance: %d", s);
       }
   }
@@ -477,30 +496,165 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
 }
 
 /*===========================================================================*
+ *		            sef_cb_init_restart                              *
+ *===========================================================================*/
+static int sef_cb_init_restart(int type, sef_init_info_t *info) /* depends on VM, PM and DS */
+{
+/* Restart the reincarnation server. */
+  int r;
+  struct rproc *old_rs_rp, *new_rs_rp;
+
+  assert(info->endpoint == RS_PROC_NR);
+
+  /* Perform default state transfer first. */
+  r = SEF_CB_INIT_RESTART_STATEFUL(type, info);
+  if(r != OK) {
+      printf("SEF_CB_INIT_RESTART_STATEFUL failed: %d\n", r);
+      return r;
+  }
+
+  /* New RS takes over. */
+  old_rs_rp = rproc_ptr[_ENDPOINT_P(RS_PROC_NR)];
+  new_rs_rp = rproc_ptr[_ENDPOINT_P(info->old_endpoint)];
+  if(rs_verbose)
+      printf("RS: %s is the new RS after restart\n", srv_to_string(new_rs_rp));
+
+  /* If an update was in progress, end it. */
+  if(SRV_IS_UPDATING(old_rs_rp)) {
+      end_update(ERESTART, RS_REPLY); /* depends on VM, PM and DS */
+  }
+
+  /* Update the service into the replica. */
+  r = update_service(&old_rs_rp, &new_rs_rp, RS_DONTSWAP, 0); /* depends on VM */
+  if(r != OK) {
+      printf("update_service failed: %d\n", r);
+      return r;
+  }
+
+  /* Initialize the new RS instance. */
+  r = init_service(new_rs_rp, SEF_INIT_RESTART, 0);
+  if(r != OK) {
+      printf("init_service failed: %d\n", r);
+      return r;
+  }
+
+  /* Reschedule a synchronous alarm for the next period. */
+  if (OK != (r=sys_setalarm(RS_DELTA_T, 0)))
+      panic("couldn't set alarm: %d", r);
+
+  return OK;
+}
+
+/*===========================================================================*
+ *		              sef_cb_init_lu                                 *
+ *===========================================================================*/
+static int sef_cb_init_lu(int type, sef_init_info_t *info) /* depends on VM */
+{
+/* Start a new version of the reincarnation server. */
+  int r;
+  struct rproc *old_rs_rp, *new_rs_rp;
+
+  assert(info->endpoint == RS_PROC_NR);
+
+  /* Perform default state transfer first. */
+  sef_setcb_init_restart(SEF_CB_INIT_RESTART_STATEFUL);
+  r = SEF_CB_INIT_LU_DEFAULT(type, info);
+  if(r != OK) {
+      printf("SEF_CB_INIT_LU_DEFAULT failed: %d\n", r);
+      return r;
+  }
+
+  /* New RS takes over. */
+  old_rs_rp = rproc_ptr[_ENDPOINT_P(RS_PROC_NR)];
+  new_rs_rp = rproc_ptr[_ENDPOINT_P(info->old_endpoint)];
+  if(rs_verbose)
+      printf("RS: %s is the new RS after live update\n",
+          srv_to_string(new_rs_rp));
+
+  /* Update the service into the replica. */
+  r = update_service(&old_rs_rp, &new_rs_rp, RS_DONTSWAP, 0); /* depends on VM */
+  if(r != OK) {
+      printf("update_service failed: %d\n", r);
+      return r;
+  }
+
+  /* Check if everything is as expected. */
+  assert(RUPDATE_IS_UPDATING());
+  assert(RUPDATE_IS_INITIALIZING());
+  assert(rupdate.num_rpupds > 0);
+  assert(rupdate.num_init_ready_pending > 0);
+
+  return OK;
+}
+
+/*===========================================================================*
+*			    sef_cb_init_response			     *
+ *===========================================================================*/
+int sef_cb_init_response(message *m_ptr) /* depends on VM, PM and DS */
+{
+  int r;
+
+  /* Return now if RS initialization failed. */
+  r = m_ptr->m_rs_init.result;
+  if(r != OK) {
+      return r;
+  }
+
+  /* Simulate an RS-to-RS init message. */
+  r = do_init_ready(m_ptr); /* depends on VM, PM and DS */
+
+  /* Assume everything is OK if EDONTREPLY was returned. */
+  if(r == EDONTREPLY) {
+      r = OK;
+  }
+  return r;
+}
+
+/*===========================================================================*
+*			     sef_cb_lu_response				     *
+ *===========================================================================*/
+int sef_cb_lu_response(message *m_ptr) /* depends on VM, PM and DS */
+{
+  int r;
+
+  /* Simulate an RS-to-RS update ready message. */
+  r = do_upd_ready(m_ptr); /* depends on VM, PM and DS */
+
+  /* If we get this far, we didn't get updated for some reason. Report error. */
+  if(r == EDONTREPLY) {
+      r = EGENERIC;
+  }
+  return r;
+}
+
+/*===========================================================================*
  *		            sef_cb_signal_handler                            *
  *===========================================================================*/
-static void sef_cb_signal_handler(int signo)
+static void sef_cb_signal_handler(int signo) /* depends on VM, PM and DS */
 {
   /* Check for known signals, ignore anything else. */
   switch(signo) {
       case SIGCHLD:
-          do_sigchld();
+          do_sigchld(); /* depends on VM, PM and DS */
       break;
       case SIGTERM:
-          do_shutdown(NULL);
+          do_shutdown(NULL); /* depends on PM */
+      break;
+      default:
+          SEF_SIGNAL_HANDLE_DEFAULT(signo);
       break;
   }
 }
 
+
 /*===========================================================================*
  *		            sef_cb_signal_manager                            *
  *===========================================================================*/
-static int sef_cb_signal_manager(endpoint_t target, int signo)
+static int sef_cb_signal_manager(endpoint_t target, int signo) /* depends on VM, PM, VFS, DS, devman and PCI */
 {
 /* Process system signal on behalf of the kernel. */
   int target_p;
   struct rproc *rp;
-  struct rprocpub *rpub;
   message m;
 
   /* Lookup slot. */
@@ -511,7 +665,6 @@ static int sef_cb_signal_manager(endpoint_t target, int signo)
       return OK; /* clear the signal */
   }
   rp = rproc_ptr[target_p];
-  rpub = rp->r_pub;
 
   /* Don't bother if a termination signal has already been processed. */
   if((rp->r_flags & RS_TERMINATED) && !(rp->r_flags & RS_EXITING)) {
@@ -535,18 +688,27 @@ static int sef_cb_signal_manager(endpoint_t target, int signo)
        sys_diagctl_stacktrace(target);
   }
 
+  /* Notify hypermem of the pending termination */
+  if ((hypermem_notify_stop (rp->r_cmd, signo) == -1) && rs_verbose)
+      printf("RS: Failed to notify hypermem of the termination\n");
+
   /* In case of termination signal handle the event. */
   if(SIGS_IS_TERMINATION(signo)) {
       rp->r_flags |= RS_TERMINATED;
-      terminate_service(rp);
+      terminate_service(rp); /* depends on VM, PM, VFS, DS, devman and PCI */
+      rs_idle_period(); /* depends on VM, PM and DS */
 
       return EDEADEPT; /* process is now gone */
+  }
+  /* Never deliver signals to VM. */
+  if (rp->r_pub->endpoint == VM_PROC_NR) {
+      return OK;
   }
 
   /* Translate every non-termination signal into a message. */
   m.m_type = SIGS_SIGNAL_RECEIVED;
   m.m_pm_lsys_sigs_signal.num = signo;
-  asynsend3(rpub->endpoint, &m, AMF_NOREPLY);
+  rs_asynsend(rp, &m, 1);
 
   return OK; /* signal has been delivered */
 }

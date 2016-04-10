@@ -45,6 +45,7 @@ function check_current_dir()
 check_current_dir
 
 # LLVM ROOT is the bridging connection from minix branch to the llvm-apps branch
+[ "${ROOT}" == "" ] && [ -f ${MINIX_LLVM_DIR}/common.inc ] && . ${MINIX_LLVM_DIR}/common.inc
 if [ "${ROOT}" == "" ]; then
 	
 	echo "\${ROOT} is not set."
@@ -72,11 +73,6 @@ ROOT_1=`echo ${ROOT} | sed "s/\\\//\\\\\\\\\//g"`
 sed -i "s/ROOT=.*$/ROOT=\"${ROOT_1}\"/g" ${MINIX_LLVM_DIR}/common.inc
 . ${MINIX_LLVM_DIR}/minix.inc
 
-# Configure llvm-apps
-cp ${ROOT}/conf/common.overrides.llvm-minix.inc ${ROOT}/common.overrides.llvm.inc
-MINIX_ROOT_1=`readlink -f ${MINIX_ROOT}`
-echo "_MINIX_ROOT=\"${MINIX_ROOT_1}\"" > ${ROOT}/common.overrides.minix.inc
-
 if [ ! -d ${ROOT}/.tmp ]; then
 	mkdir ${ROOT}/.tmp 2>/dev/null || true
 fi
@@ -91,17 +87,7 @@ fi
 ########################
 
 if [ "${GEN_GOLD_PLUGIN}" == "yes" ] && [ -f "${MYPWD}/.gold_generated" ]; then
-	echo "It is found that Gold plugin has already been generated. Would you like to re-generate? [y | n]"
-	if [ "$INTERACTIVE" == "no" ]; then
-		response=n
-	else
-		read response
-	fi
-	if [ "y" == "$response" ] || [ "Y" == "$response" ]; then
-		echo "Gold shall be regenerated."
-	else
-		GEN_GOLD_PLUGIN="no"
-	fi
+	GEN_GOLD_PLUGIN="no"
 fi
 
 if [ "${GEN_GOLD_PLUGIN}" == "yes" ]; then
@@ -120,28 +106,35 @@ fi
 ########################
 # Build Minix
 ########################
+# BJG - add -V MKKYUA=no -V MKATF=no for distributed recovery so we can make ISO's
+export BUILDVARS=$(echo "${BUILDVARS} -V MKBITCODE=yes -V MKKYUA=no -V MKATF=no"| sed -e 's,-V MKMAGIC=yes,-V DBG=-g -V STRIPFLAG=-s -V CPPFLAGS=-D_MINIX_MAGIC=1,')
+
 if [ "${REBUILD_MINIX}" == "yes" ]; then
 
 	echo "Building Minix..."
 	echo "CC:$CC"
 	echo "CXX:$CXX"
 	echo "JOBS:$JOBS"
+	echo "BUILDVARS:$BUILDVARS"
 	echo 
 	cd ${MINIX_ROOT}
-	BUILDVARS="-V MKBITCODE=yes" ./releasetools/x86_hdimage.sh
-	EXITCODE=$?
+	./releasetools/x86_hdimage.sh || EXITCODE=1
 	cd ${MYPWD}
 	if [ "$EXITCODE" != "0" ]; then
         	echo "Error: Failed building Minix source code."
-	        exit $EXITCODE
 	else
 		echo "Completed building Minix source code."
-		exit $EXITCODE
 	fi
 else
 	echo "Building Minix: NO"
 fi
+# Fix broken .depend
+rm -f ${MINIX_ROOT}/../obj.i386/minix/servers/ipc/.depend
 
-# Reconfigure llvm-apps
+# Configure llvm-apps
+cp ${ROOT}/conf/common.overrides.llvm-minix.inc ${ROOT}/common.overrides.llvm.inc
+MINIX_ROOT_1=`readlink -f ${MINIX_ROOT}`
 MINIX_TOOLS_DIR=$(readlink -f ${MINIX_ROOT}/../obj.i386/tooldir.*)
-echo "MINIX_TOOLS_DIR=\"${MINIX_TOOLS_DIR}\"" >> ${ROOT}/common.overrides.minix.inc
+echo "_MINIX_ROOT=\"${MINIX_ROOT_1}\"" > ${ROOT}/common.overrides.minix.inc
+echo "_MINIX_TOOLS_DIR=\"${MINIX_TOOLS_DIR}\"" >> ${ROOT}/common.overrides.minix.inc
+exit $EXITCODE

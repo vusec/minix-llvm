@@ -107,7 +107,7 @@ static void pagefault( struct proc *pr,
 			is_nested);
 		proc_stacktrace(pr);
 		printf("pc of pagefault: 0x%lx\n", frame->eip);
-		panic("pagefault in VM");
+		cause_sig(proc_nr(pr), SIGSEGV);
 
 		return;
 	}
@@ -302,7 +302,7 @@ static void proc_stacktrace_execute(struct proc *whichproc, reg_t v_bp, reg_t pc
 
 #define PRCOPY(pr, pv, v, n) \
   (iskernel ? (memcpy((char *) v, (char *) pv, n), OK) : \
-     data_copy(pr->p_endpoint, pv, KERNEL, (vir_bytes) (v), n))
+     data_copy_nopanic(pr->p_endpoint, pv, KERNEL, (vir_bytes) (v), n))
 
 	        if(PRCOPY(whichproc, v_bp, &v_hbp, sizeof(v_hbp)) != OK) {
 			printf("(v_bp 0x%lx ?)", v_bp);
@@ -352,7 +352,7 @@ void proc_stacktrace(struct proc *whichproc)
 			 * kernel/arch/i386/usermapped_glo_ipc.S.
 			 */
 
-			if(data_copy(whichproc->p_endpoint, sp+16,
+			if(data_copy_nopanic(whichproc->p_endpoint, sp+16,
 			  KERNEL, (vir_bytes) &use_bp,
 				sizeof(use_bp)) != OK) {
 				printf("stacktrace: aborting, copy failed\n");
@@ -368,6 +368,8 @@ void proc_stacktrace(struct proc *whichproc)
 	}
 
 #if USE_SYSDEBUG
+	printf("pc %x sp %x bp %x\n",
+		whichproc->p_reg.pc, whichproc->p_reg.sp, whichproc->p_reg.sp, use_bp);
 	proc_stacktrace_execute(whichproc, use_bp, whichproc->p_reg.pc);
 #endif /* USE_SYSDEBUG */
 }

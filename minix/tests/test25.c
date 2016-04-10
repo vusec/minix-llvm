@@ -19,7 +19,8 @@
 int max_error = 	4;
 #include "common.h"
 
-#define ITERATIONS	2
+#define ITERATIONS_FULL	 2
+#define ITERATIONS_QUICK 1
 
 
 #define System(cmd)	if (system(cmd) != 0) printf("``%s'' failed\n", cmd)
@@ -56,7 +57,7 @@ int main(int argc, char *argv[])
   /* Close all files, the parent might have opened. */
   for (i = 3; i < 100; i++) close(i);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 001) test25a();
 	if (m & 002) test25b();
 	if (m & 004) test25c();

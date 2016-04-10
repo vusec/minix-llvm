@@ -121,6 +121,8 @@ typedef	__off_t		off_t;		/* file offset */
 #define MAP_LOWER16M		0x200000        /* physically below 16MB */
 #define MAP_LOWER1M		0x400000        /* physically below 16MB */
 #define MAP_THIRDPARTY		0x800000        /* perform on behalf of any process */
+#define MAP_NORELOC	       0x1000000        /* not relocatable */
+
 #endif /* defined(__minix) */
 
 /*

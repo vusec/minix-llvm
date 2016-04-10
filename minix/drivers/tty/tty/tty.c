@@ -296,9 +296,7 @@ static void sef_local_startup()
 {
   /* Register init callbacks. */
   sef_setcb_init_fresh(sef_cb_init_fresh);
-  sef_setcb_init_restart(sef_cb_init_fresh);
-
-  /* No live update support for now. */
+  sef_setcb_init_restart(SEF_CB_INIT_RESTART_STATEFUL);
 
   /* Register signal callbacks. */
   sef_setcb_signal_handler(sef_cb_signal_handler);
@@ -464,6 +462,9 @@ static void sef_cb_signal_handler(int signo)
       /* Switch to primary console on termination. */
       case SIGTERM:
           cons_stop();
+      break;
+      default:
+          SEF_SIGNAL_HANDLE_DEFAULT(signo);
       break;
   }
 }

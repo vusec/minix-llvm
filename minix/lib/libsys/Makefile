@@ -3,7 +3,9 @@
 
 NOGCCERROR=yes
 
-CPPFLAGS+= -D_MINIX_SYSTEM -D_SYSTEM
+CPPFLAGS+= -D_MINIX_SYSTEM -D_SYSTEM -I${NETBSDSRCDIR}/minix
+
+CPPFLAGS+= -D_MINIX_DISTRIBUTED_RECOVERY=1
 
 LIB=		sys
 
@@ -29,6 +31,7 @@ SRCS+=  \
 	getticks.c \
 	getsysinfo.c \
 	getuptime.c \
+	hypermem-api.c \
 	kernel_call.c \
 	kprintf.c \
 	kputc.c \
@@ -43,8 +46,11 @@ SRCS+=  \
 	sef_fi.c \
 	sef_init.c \
 	sef_liveupdate.c \
+	sef_llvm.c \
+	sef_metadata.c \
 	sef_ping.c \
 	sef_signal.c \
+	sef_st.c \
 	sqrt_approx.c \
 	srv_fork.c \
 	srv_kill.c \
@@ -139,5 +145,6 @@ CPPFLAGS+= -DUSE_SYSDEBUG
 .endif
 
 CPPFLAGS.sched_start.c+=	-I${NETBSDSRCDIR}/minix
+CPPFLAGS.sef_st.c+=		-I${NETBSDSRCDIR}/minix
 
 .include <bsd.lib.mk>

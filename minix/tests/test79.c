@@ -21,6 +21,7 @@
 #include "common.h"
 
 #define NR_SIGNALS	20000
+#define NR_SIGNALS_QUICK	4000
 
 #define MAX_SIGNALERS	3
 
@@ -376,6 +377,7 @@ sub79a(int job, int signalers, int options)
 {
 	struct link worker, signaler[MAX_SIGNALERS];
 	int i;
+	int quick_test;
 
 	spawn(&worker, worker_proc);
 
@@ -392,10 +394,11 @@ sub79a(int job, int signalers, int options)
 
 	if (rcv(&worker) != 0) e(0);
 
+	quick_test = get_setting_quick_test();
 	for (i = 0; i < signalers; i++) {
 		snd(&signaler[i], worker.pid);
 		snd(&signaler[i], signaler_sig[i]);
-		snd(&signaler[i], NR_SIGNALS);
+		snd(&signaler[i], quick_test ? NR_SIGNALS_QUICK : NR_SIGNALS);
 	}
 
 	for (i = 0; i < signalers; i++)

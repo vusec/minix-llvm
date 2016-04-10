@@ -27,8 +27,10 @@ int blockdriver_receive_mq(message *m_ptr, int *status_ptr)
 /* receive() interface for drivers with message queueing. */
 
   /* Any queued messages? */
-  if (mq_dequeue(SINGLE_THREAD, m_ptr, status_ptr))
+  if (mq_dequeue(SINGLE_THREAD, m_ptr, status_ptr)) {
+	sef_handle_message(m_ptr, *status_ptr);
 	return OK;
+  }
 
   /* Fall back to standard receive() interface otherwise. */
   return driver_receive(ANY, m_ptr, status_ptr);

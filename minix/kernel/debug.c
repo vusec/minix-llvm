@@ -157,6 +157,7 @@ rtsflagstr(const u32_t flags)
 	FLAG(RTS_VMREQTARGET);
 	FLAG(RTS_PREEMPTED);
 	FLAG(RTS_NO_QUANTUM);
+	FLAG(RTS_RSINHIBIT);
 
 	return str;
 }
@@ -267,7 +268,7 @@ void print_proc(struct proc *pp)
 
 	print_sigmgr(pp);
 
-	dep = P_BLOCKEDON(pp);
+	dep = P_BLOCKEDON(pp, 1 /*consider_sig*/);
 	if(dep != NONE) {
 		printf(" blocked on: ");
 		print_endpoint(dep);
@@ -294,7 +295,7 @@ static void print_proc_depends(struct proc *pp, const int level)
 	proc_stacktrace(pp);
 
 
-	dep = P_BLOCKEDON(pp);
+	dep = P_BLOCKEDON(pp, 1 /*consider_sig*/);
 	if(dep != NONE && dep != ANY) {
 		int procno;
 		if(isokendpt(dep, &procno)) {
@@ -384,7 +385,7 @@ static int namematch(char **names, int nnames, char *name)
 }
 #endif
 
-static void printmsg(message *msg, struct proc *src, struct proc *dst, 
+void printmsg(message *msg, struct proc *src, struct proc *dst, 
 	char operation, int printparams)
 {
 	const char *name;

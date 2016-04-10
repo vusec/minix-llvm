@@ -7,7 +7,7 @@
 #define OLD_CTX		&(threads[old_thread]->m_context)
 #define CURRENT_CTX	&(threads[current_thread]->m_context)
 #define CURRENT_STATE	threads[current_thread]->m_state
-static int yield_all;
+static mthread_thread_t yield_all_thread = NO_THREAD;
 
 /*===========================================================================*
  *				mthread_getcontext			     *
@@ -82,7 +82,7 @@ void mthread_init_scheduler(void)
 {
 /* Initialize the scheduler */
   mthread_queue_init(&run_queue);
-  yield_all = 0;
+  yield_all_thread = NO_THREAD;
 
 }
 
@@ -144,6 +144,52 @@ mthread_thread_t thread; /* Thread to make runnable */
 
 
 /*===========================================================================*
+ *				mthread_checkpoint			     *
+ *===========================================================================*/
+void mthread_checkpoint(void)
+{
+  mthread_tcb_t *tcb;
+  ucontext_t *ctx;
+
+  /* Save current thread's context */
+  tcb = mthread_find_tcb(current_thread);
+  ctx = &(tcb->m_context);
+  if (mthread_getcontext(ctx) != 0)
+	mthread_panic("Couldn't save current thread's context");
+}
+
+
+/*===========================================================================*
+ *				mthread_recover				     *
+ *===========================================================================*/
+void mthread_recover(void)
+{
+  mthread_tcb_t *tcb;
+
+  assert(current_thread == MAIN_THREAD || !running_main_thread);
+  assert(current_thread != MAIN_THREAD || running_main_thread);
+
+  /* Add the crashed thread back to the run queue */
+  if (current_thread != MAIN_THREAD) {
+	mthread_queue_add(&run_queue, current_thread);
+	tcb = mthread_find_tcb(current_thread);
+	tcb->m_state = MS_RUNNABLE;
+	current_thread = MAIN_THREAD;
+	running_main_thread = 1;
+  }
+
+  /* main thread will start with yield_all, so allow that to succeed */
+  if (yield_all_thread != NO_THREAD) {
+	if (yield_all_thread != MAIN_THREAD) {
+		mthread_panic("cannot recover if a thread other than the "
+			"main thread is in yield_all state");
+	}
+	yield_all_thread = NO_THREAD;
+  }
+}
+
+
+/*===========================================================================*
  *				mthread_yield				     *
  *===========================================================================*/
 int mthread_yield(void)
@@ -188,8 +234,11 @@ void mthread_yield_all(void)
  * this function will lead to a deadlock.
  */
 
-  if (yield_all) mthread_panic("Deadlock: two threads trying to yield_all");
-  yield_all = 1;
+  assert(current_thread != NO_THREAD);
+
+  if (yield_all_thread == current_thread) mthread_panic("Corruption: thread trying to yield_all twice");
+  if (yield_all_thread != NO_THREAD) mthread_panic("Deadlock: two threads trying to yield_all");
+  yield_all_thread = current_thread;
 
   /* This works as follows. Thread A is running and threads B, C, and D are
    * runnable. As A is running, it is NOT on the run_queue (see
@@ -205,7 +254,7 @@ void mthread_yield_all(void)
   }
 
   /* Done yielding all threads. */
-  yield_all = 0;
+  yield_all_thread = NO_THREAD;
 }
 
 /* pthread compatibility layer. */

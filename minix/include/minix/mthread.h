@@ -115,6 +115,7 @@ void mthread_verify_f(char *f, int l);
 #define mthread_verify() mthread_verify_f(__FILE__, __LINE__)
 void mthread_stacktrace(mthread_thread_t t);
 void mthread_stacktraces(void);
+void mthread_reset_mainthread_state(void);
 
 /* mutex.c */
 int mthread_mutex_destroy(mthread_mutex_t *mutex);
@@ -139,6 +140,8 @@ int mthread_rwlock_wrlock(mthread_rwlock_t *rwlock);
 int mthread_rwlock_unlock(mthread_rwlock_t *rwlock);
 
 /* schedule.c */
+void mthread_checkpoint(void);
+void mthread_recover(void);
 int mthread_yield(void);
 void mthread_yield_all(void);
 __END_DECLS

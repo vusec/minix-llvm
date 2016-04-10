@@ -26,7 +26,10 @@ LDFLAGS+= -T ${LINKERSCRIPT}
 LDFLAGS+= -nostdlib -L${DESTDIR}/usr/lib
 CFLAGS += -fno-stack-protector
 
-CPPFLAGS+= -D__kernel__ 
+CPPFLAGS+= -D__kernel__  
+
+# BJG - distributed recovery project feature
+CPPFLAGS+= -D_MINIX_DISTRIBUTED_RECOVERY
 
 # kernel headers are always called through kernel/*.h
 CPPFLAGS+= -I${NETBSDSRCDIR}/minix
@@ -86,6 +89,7 @@ kernel: kernel.bcl.o
 	${_MKTARGET_LINK}
 	${_CCLINK.kernel} \
 		${_LDFLAGS.kernel} \
+		-march=x86 -mcpu=i586 \
 		-L${DESTDIR}/usr/lib \
 		${_LDSTATIC.kernel} -o ${.TARGET} \
 		${.TARGET}.bcl.o ${OBJS} ${_PROGLDOPTS} ${_LDADD.kernel} \

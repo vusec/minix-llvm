@@ -15,7 +15,8 @@
 int max_error = 1;
 #include "common.h"
 
-#define ITERATIONS     2
+#define ITERATIONS_FULL  2
+#define ITERATIONS_QUICK 1
 
 
 #define System(cmd)	if (system(cmd) != 0) printf("``%s'' failed\n", cmd)
@@ -60,7 +61,7 @@ int main(int argc, char *argv[])
   makelongnames();
   superuser = (getuid() == 0);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 0001) test33a();
 	if (m & 0002) test33b();
 	if (m & 0004) test33c();
@@ -81,7 +82,7 @@ void test33a()
   switch (fork()) {
       case -1:	printf("Can't fork\n");	break;
       case 0:
-	alarm(20);
+	alarm(200);
 	setuid(getuid());	/* (Re)set the effective ids to the
 				 * real ids. */
 	setgid(getgid());
@@ -105,7 +106,7 @@ void test33a()
   switch (fork()) {
       case -1:	printf("Can't fork\n");	break;
       case 0:
-	alarm(20);
+	alarm(200);
 	setuid(getuid());	/* (Re)set the effective ids to the
 				 * real ids. */
 	setgid(getgid());
@@ -129,7 +130,7 @@ void test33a()
   switch (fork()) {
       case -1:	printf("Can't fork\n");	break;
       case 0:
-	alarm(20);
+	alarm(200);
 	setuid(getuid());	/* (Re)set the effective ids to the
 				 * real ids. */
 	setgid(getgid());
@@ -162,7 +163,7 @@ void test33a()
   switch (fork()) {
       case -1:	printf("Can't fork\n");	break;
       case 0:
-	alarm(20);
+	alarm(200);
 	setuid(getuid());
 	setgid(getgid());
 	System("rm -rf [_r][_w][_x]");
@@ -184,7 +185,7 @@ void test33b()
   switch (fork()) {
       case -1:	printf("Can't fork\n");	break;
       case 0:
-	alarm(20);
+	alarm(200);
 
 	/* (Re)set the effective ids to the real ids. */
 	setuid(getuid());

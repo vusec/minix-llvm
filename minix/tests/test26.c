@@ -15,8 +15,6 @@
 int max_error = 	4;
 #include "common.h"
 
-#define ITERATIONS     10
-
 #define System(cmd)   if (system(cmd) != 0) printf("``%s'' failed\n", cmd)
 #define Chdir(dir)    if (chdir(dir) != 0) printf("Can't goto %s\n", dir)
 #define Stat(a,b)     if (stat(a,b) != 0) printf("Can't stat %s\n", a)

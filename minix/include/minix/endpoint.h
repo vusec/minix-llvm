@@ -52,11 +52,17 @@
 #define _ENDPOINT_MAX_GENERATION	(INT_MAX/_ENDPOINT_GENERATION_SIZE-1)
 #define _ENDPOINT_SLOT_TOP	(_ENDPOINT_GENERATION_SIZE-MAX_NR_TASKS)
 
-/* The special endpoint numbers, and the resulting maximum slot number. */
-#define ANY		((endpoint_t) (_ENDPOINT_SLOT_TOP - 1))
-#define NONE		((endpoint_t) (_ENDPOINT_SLOT_TOP - 2))
-#define SELF		((endpoint_t) (_ENDPOINT_SLOT_TOP - 3))
-#define MAX_NR_PROCS		      (_ENDPOINT_SLOT_TOP - 3)	/* (int)SELF */
+/*
+ * The special endpoint numbers, and the resulting maximum slot number.
+ * ANY_USR, ANY_SYS and ANY_TSK are not part of the IPC protocol.
+ */
+#define ANY_USR		((endpoint_t) (_ENDPOINT_SLOT_TOP - 1))
+#define ANY_SYS		((endpoint_t) (_ENDPOINT_SLOT_TOP - 2))
+#define ANY_TSK		((endpoint_t) (_ENDPOINT_SLOT_TOP - 3))
+#define ANY		((endpoint_t) (_ENDPOINT_SLOT_TOP - 4))
+#define NONE		((endpoint_t) (_ENDPOINT_SLOT_TOP - 5))
+#define SELF		((endpoint_t) (_ENDPOINT_SLOT_TOP - 6))
+#define MAX_NR_PROCS		      (_ENDPOINT_SLOT_TOP - 6)	/* (int)SELF */
 
 /* Sanity check. */
 #if NR_PROCS > MAX_NR_PROCS

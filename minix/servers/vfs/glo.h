@@ -23,6 +23,7 @@ EXTERN u32_t system_hz;		/* system clock frequency. */
 
 /* The parameters of the call are kept here. */
 EXTERN message m_in;		/* the input message itself */
+EXTERN int m_in_status;		/* ipc status bits fo m_in */
 # define who_p		((int) (fp - fproc))
 # define fproc_addr(e)	(&fproc[_ENDPOINT_P(e)])
 # define who_e		(self != NULL ? fp->fp_endpoint : m_in.m_source)

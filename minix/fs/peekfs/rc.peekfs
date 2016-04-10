@@ -1,0 +1,72 @@
+RANDOM=`dd if=/dev/urandom count=1 2> /dev/null | cksum | cut -f1 -d" "`
+TMP=$RANDOM
+RD_DEV="/dev/imgrd"
+RD_MNT="/ramdisk.$TMP"
+PEEK_BIN="/service/peekfs"
+PEEK_MNT="/peek"
+SYSTEM_CONF="/etc/system.conf"
+
+action=$1
+
+case $action in
+start)
+	echo "Starting peekfs... "
+
+	# check if ramdisk mount point already exists (unlikely)
+	if [ -d $RD_MNT ]; then
+		echo "rc.peekfs: $RD_MNT already exists, loading aborted."
+		exit 1
+	fi
+
+	# check if peekfs mount point already exists
+	if [ -d $PEEK_MNT ]; then
+		# check if the folder is not empty
+		if [ "$(ls -A $PEEK_MNT)" ]; then
+			echo "rc.peekfs: $PEEK_MNT already exists and is not empty, loading aborted."
+			exit 1
+		fi
+	else
+		# create peekfs mount point
+		mkdir $PEEK_MNT
+	fi
+
+	# create ramdisk mount point
+	mkdir $RD_MNT
+
+	# mount ramdisk
+	mount $RD_DEV $RD_MNT
+
+	# backup original system.conf
+	mv $SYSTEM_CONF $SYSTEM_CONF.$TMP
+
+	# copy ramdisk system.conf
+	cp "$RD_MNT$SYSTEM_CONF" $SYSTEM_CONF
+
+	# copy peekfs binary
+	cp "$RD_MNT$PEEK_BIN" $PEEK_BIN
+
+	# mount peekfs
+	service up $PEEK_BIN -label peekfs
+	mount -e -t peekfs none $PEEK_MNT
+
+	# restore original system.conf
+	mv $SYSTEM_CONF.$TMP $SYSTEM_CONF
+
+	# unmount ramdisk
+	umount $RD_MNT || echo "rc.peekfs: couldn't unmount ramdisk"
+
+	# delete ramdisk mount point
+	rmdir $RD_MNT
+
+	echo "done."
+	;;
+
+down|stop)
+	echo -n "Shutting down peekfs... "
+
+	# unmount peekfs
+	umount $PEEK_MNT
+
+	echo "done."
+	;;
+esac

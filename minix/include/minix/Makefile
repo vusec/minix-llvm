@@ -11,11 +11,11 @@ INCS+=	acpi.h audio_fw.h bitmap.h \
 	debug.h devio.h devman.h dmap.h \
 	driver.h drivers.h drvlib.h ds.h \
 	endpoint.h fb.h fsdriver.h fslib.h gpio.h gcov.h hash.h \
-	hgfs.h i2c.h i2cdriver.h ioctl.h input.h \
-	inputdriver.h ipc.h ipcconst.h \
+	hgfs.h hypermem-api.h i2c.h i2cdriver.h ioctl.h input.h \
+	inputdriver.h ipc.h ipc_filter.h ipcconst.h \
 	keymap.h log.h mmio.h mthread.h minlib.h \
 	netdriver.h optset.h padconf.h partition.h portio.h \
-	priv.h procfs.h profile.h queryparam.h \
+	priv.h procfs.h profile.h prox.h peekfs.h queryparam.h \
 	rs.h safecopies.h sched.h sef.h sffs.h \
 	sound.h spin.h sys_config.h sysinfo.h \
 	syslib.h sysutil.h timers.h type.h \

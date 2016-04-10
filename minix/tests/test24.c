@@ -23,7 +23,8 @@ void makelongnames(void);
 int max_error = 	4;
 #include "common.h"
 
-#define ITERATIONS 5
+#define ITERATIONS_FULL  5
+#define ITERATIONS_QUICK 1
 
 
 #define DIRENT0	((struct dirent *) NULL)
@@ -47,7 +48,7 @@ int main(int argc, char *argv[])
   makelongnames();
   superuser = (geteuid() == 0);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 0001) test24a();
 	if (m & 0002) test24b();
 	if (m & 0004) test24c();

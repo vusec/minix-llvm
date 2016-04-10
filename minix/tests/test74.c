@@ -549,6 +549,7 @@ main(int argc, char *argv[])
 
 	cachequiet(!bigflag);
 	if(bigflag) iter = 3;
+	if(get_setting_quick_test()) iter = 1;
 
 	/* Try various combinations working set sizes
 	 * and block sizes in order to specifically 

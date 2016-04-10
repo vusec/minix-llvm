@@ -118,6 +118,8 @@ int do_vfs_reply(message *m)
 	int n;
 	struct vmproc *vmp;
 
+        sef_handle_message(NULL, 0);	/* it is a message but not a request */
+
 	assert(active);
 	assert(active->req_id == m->VMV_REQID);
 

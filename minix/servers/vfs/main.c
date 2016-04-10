@@ -64,6 +64,9 @@ int main(void)
   /* SEF local startup. */
   sef_local_startup();
 
+  /* if we recovered, unschedule the last current thread */
+  mthread_recover();
+
   printf("Started VFS: %d worker thread(s)\n", NR_WTHREADS);
 
   if (OK != (sys_getkinfo(&kinfo)))
@@ -178,7 +181,7 @@ static void handle_work(void (*func)(void))
 	use_spare = TRUE;
   }
 
-  worker_start(fp, func, &m_in, use_spare);
+  worker_start(fp, func, &m_in, use_spare, m_in_status);
 }
 
 
@@ -283,9 +286,7 @@ static void sef_local_startup()
 {
   /* Register init callbacks. */
   sef_setcb_init_fresh(sef_cb_init_fresh);
-  sef_setcb_init_restart(sef_cb_init_fail);
-
-  /* No live update support for now. */
+  sef_setcb_init_restart(SEF_CB_INIT_RESTART_STATEFUL);
 
   /* Let SEF perform startup. */
   sef_startup();
@@ -394,7 +395,7 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *info)
 
   /* Mount PFS and initial file system root. */
   worker_start(fproc_addr(VFS_PROC_NR), do_init_root, &mess /*unused*/,
-	FALSE /*use_spare*/);
+	FALSE /*use_spare*/, 0);
 
   return(OK);
 }
@@ -502,7 +503,7 @@ static int get_work(void)
 
   for(;;) {
 	/* Normal case.  No one to revive. Get a useful request. */
-	if ((r = sef_receive(ANY, &m_in)) != OK) {
+	if ((r = sef_receive_status(ANY, &m_in, &m_in_status)) != OK) {
 		panic("VFS: sef_receive error: %d", r);
 	}
 
@@ -739,7 +740,7 @@ static void service_pm(void)
 		 * system call that might be in progress for that proc has
 		 * finished. If the proc is not busy, we start a new thread.
 		 */
-		worker_start(rfp, NULL, &m_in, FALSE /*use_spare*/);
+		worker_start(rfp, NULL, &m_in, FALSE /*use_spare*/, m_in_status);
 
 		return;
 	}
@@ -795,7 +796,7 @@ static void service_pm(void)
 	 * once, or ever for that matter. :)
 	 */
 	worker_start(fproc_addr(PM_PROC_NR), pm_reboot, &m_in,
-		FALSE /*use_spare*/);
+		FALSE /*use_spare*/, m_in_status);
 
 	return;
 
@@ -861,7 +862,7 @@ struct fproc *rfp;
    * special resumption procedure.
    */
   if (blocked_on == FP_BLOCKED_ON_PIPE) {
-	worker_start(rfp, do_pending_pipe, &m_in, FALSE /*use_spare*/);
+	worker_start(rfp, do_pending_pipe, &m_in, FALSE /*use_spare*/, m_in_status);
 	return(FALSE);	/* Retrieve more work */
   }
 

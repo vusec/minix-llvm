@@ -46,6 +46,7 @@ SUBDIR+=	../minix/lib/libasyn \
 		../minix/lib/libminc \
 		../minix/lib/libminixfs \
 		../minix/lib/libnetdriver \
+		../minix/lib/libprox \
 		../minix/lib/libsffs \
 		../minix/lib/libtimers \
 		../minix/lib/libusb \

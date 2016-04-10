@@ -57,21 +57,27 @@ static void GLUE(test_value_with_base, TYPE_FUNC)(TYPE value, int base)
 
 static void GLUE(test_value, TYPE_FUNC)(TYPE value)
 {
-	int base;
+	int base, i;
 
 	/* let's get all our bases covered */
-	for (base = 2; base <= 36; base++)
-		GLUE(test_value_with_base, TYPE_FUNC)(value, base);
+	if (quicktest) {
+		for (i = 0; i < QUICKBASES_COUNT; i++)
+			GLUE(test_value_with_base, TYPE_FUNC)(value, quickbases[i]);
+	} else {
+		for (base = 2; base <= 36; base++)
+			GLUE(test_value_with_base, TYPE_FUNC)(value, base);
+	}
 }
 
 static void GLUE(test, TYPE_FUNC)(void)
 {
-	int base, i;
+	int base, i, max;
 	TYPE value, valuenext;
 
 	/* check 0x0000.... and 0xffff.... */
+	max = quicktest ? 0x1000 : 0x10000;
 	value = 0;
-	for (i = 0; i < 0x10000; i++)
+	for (i = 0; i < max; i++)
 	{
 		/* test current value */
 		GLUE(test_value, TYPE_FUNC)(value);
@@ -82,7 +88,7 @@ static void GLUE(test, TYPE_FUNC)(void)
 	/* check 0x8000.... and 0x7fff.... */
 	value = 0;
 	value = ((~value) << 1) >> 1;
-	for (i = 0; i < 0x10000; i++)
+	for (i = 0; i < max; i++)
 	{
 		/* test current value */
 		GLUE(test_value, TYPE_FUNC)(value);
@@ -91,13 +97,14 @@ static void GLUE(test, TYPE_FUNC)(void)
 	}
 
 	/* check powers of possible bases */
+	max = quicktest ? 2 : 36;
 	for (base = 2; base <= 36; base++)
 	{
 		value = 1;
 		while (1)
 		{
 			/* test current value with offsets */
-			for (i = -36; i <= 36; i++)
+			for (i = -max; i <= max; i++)
 			{
 				GLUE(test_value, TYPE_FUNC)(value + i);
 				GLUE(test_value, TYPE_FUNC)(-value + i);

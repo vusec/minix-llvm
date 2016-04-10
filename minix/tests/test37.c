@@ -11,7 +11,8 @@
 #include <stdio.h>
 #include <assert.h>
 
-#define ITERATIONS 2
+#define ITERATIONS_FULL  2
+#define ITERATIONS_QUICK 1
 #define SIGS 14
 int max_error = 4;
 #include "common.h"
@@ -79,7 +80,7 @@ char *argv[];
 
   if (argc == 2) m = atoi(argv[1]);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	iteration = i;
 	if (m & 0000001) test37a();
 	if (m & 0000002) test37b();

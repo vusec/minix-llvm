@@ -15,7 +15,8 @@
 int max_error = 	4;
 #include "common.h"
 
-#define ITERATIONS     60
+#define ITERATIONS_FULL  60
+#define ITERATIONS_QUICK 10
 
 #define Fstat(a,b)	if (fstat(a,b) != 0) printf("Can't fstat %d\n", a)
 #define Time(t)		if (time(t) == (time_t)-1) printf("Time error\n")
@@ -32,7 +33,7 @@ int main(int argc, char *argv[])
 
   if (argc == 2) m = atoi(argv[1]);
   start(8);
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 0001) test8a();
 	if (m & 0002) test8b();
   }

@@ -8,7 +8,7 @@
 
 void *alloc_contig(size_t len, int flags, phys_bytes *phys)
 {
-	vir_bytes buf;
+	void* buf;
 	int mmapflags = MAP_PREALLOC|MAP_CONTIG|MAP_ANON;
 
 	if(flags & AC_LOWER16M)
@@ -17,15 +17,16 @@ void *alloc_contig(size_t len, int flags, phys_bytes *phys)
 		mmapflags |= MAP_LOWER1M;
 	if(flags & AC_ALIGN64K)
 		mmapflags |= MAP_ALIGNMENT_64KB;
+        if(flags & AC_NORELOC)
+                mmapflags |= MAP_NORELOC;
 
 	/* First try to get memory with mmap. This is guaranteed
 	 * to be page-aligned, and we can tell VM it has to be
 	 * pre-allocated and contiguous.
 	 */
 	errno = 0;
-	buf = (vir_bytes) mmap(0, len, PROT_READ|PROT_WRITE, mmapflags, -1, 0);
-
-	if(buf == (vir_bytes) MAP_FAILED) {
+	buf = sef_llvm_ac_mmap(0, len, PROT_READ|PROT_WRITE, mmapflags, -1, 0, flags);
+	if(buf == MAP_FAILED) {
 		return NULL;
 	}
 

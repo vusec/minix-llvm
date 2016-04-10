@@ -361,7 +361,7 @@ unsigned bytes_ahead;		/* bytes beyond position for immediate use */
 		assert(read_q != NULL);
 		free(read_q);
 	}
-	if(!(read_q = malloc(sizeof(read_q[0])*nr_bufs)))
+	if(!(read_q = calloc(nr_bufs, sizeof(read_q[0]))))
 		panic("couldn't allocate read_q");
 	readqsize = nr_bufs;
   }

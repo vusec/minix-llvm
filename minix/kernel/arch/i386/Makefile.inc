@@ -78,7 +78,7 @@ SRCS+=	mpx.S arch_clock.c arch_do_vmctl.c arch_system.c \
 SRCS+=	do_iopenable.c do_readbios.c do_sdevio.c exception.c i8259.c oxpcie.c \
 	usermapped_data_arch.c \
 	io_inb.S io_inl.S io_intr.S io_inw.S io_outb.S io_outl.S io_outw.S \
-	usermapped_glo_ipc.S
+	usermapped_glo_ipc.S hypermem-lowlevel.c
 
 OBJS.kernel+=	${UNPAGED_OBJS}
 

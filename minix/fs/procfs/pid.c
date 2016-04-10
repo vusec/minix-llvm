@@ -100,7 +100,7 @@ pid_psinfo(int i)
 	    (int)proc[i].p_endpoint,		/* process endpoint */
 	    name,				/* process name */
 	    state,				/* process state letter */
-	    (int)P_BLOCKEDON(&proc[i]),		/* endpt blocked on, or NONE */
+	    (int)P_BLOCKEDON(&proc[i], 1 /*consider_sig*/), /* endpt blocked on, or NONE */
 	    (int)proc[i].p_priority,		/* process priority */
 	    (long)proc[i].p_user_time,		/* user time */
 	    (long)proc[i].p_sys_time,		/* system time */

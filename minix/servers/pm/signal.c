@@ -441,16 +441,15 @@ int ksig;			/* non-zero means signal comes from kernel  */
 
   /* Handle system signals for system processes first. */
   if(rmp->mp_flags & PRIV_PROC) {
-   	/* Always skip signals for PM (only necessary when broadcasting). */
-   	if(rmp->mp_endpoint == PM_PROC_NR) {
- 		return;
-   	}
-
    	/* System signals have always to go through the kernel first to let it
    	 * pick the right signal manager. If PM is the assigned signal manager,
    	 * the signal will come back and will actually be processed.
    	 */
    	if(!ksig) {
+		if(rmp->mp_endpoint == PM_PROC_NR && !sys_privctl_get_rs_ready()) {
+			printf("PM: skipping killing self with busy RS.\n");
+			return;
+		}
  		sys_kill(rmp->mp_endpoint, signo);
  		return;
    	}
@@ -599,6 +598,9 @@ int ksig;			/* non-zero means signal comes from kernel  */
 	/* Do not kill servers and drivers when broadcasting SIGKILL. */
 	if (proc_id == -1 && signo == SIGKILL &&
 		(rmp->mp_flags & PRIV_PROC)) continue;
+
+	/* Skip PM when broadcasting. */
+	if (proc_id == -1 && rmp->mp_endpoint == PM_PROC_NR) continue;
 
 	/* Skip VM entirely as it might lead to a deadlock with its signal
 	 * manager if the manager page faults at the same time.

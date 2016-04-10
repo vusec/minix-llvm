@@ -23,7 +23,8 @@
 int max_error = 	4;
 #include "common.h"
 
-#define ITERATIONS      2
+#define ITERATIONS_FULL  2
+#define ITERATIONS_QUICK 1
 
 
 #define DIRENT0		((struct dirent *) NULL)
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
   makelongnames();
   umask(0000);			/* no umask */
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 0001) test28a();
 	if (m & 0002) test28b();
 	if (m & 0004) test28c();

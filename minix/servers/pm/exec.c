@@ -41,7 +41,6 @@ int do_exec()
 	/* Forward call to VFS */
 	memset(&m, 0, sizeof(m));
 	m.m_type = VFS_PM_EXEC;
-	m.VFS_PM_ENDPT = mp->mp_endpoint;
 	m.VFS_PM_PATH = (void *)m_in.m_lc_pm_exec.name;
 	m.VFS_PM_PATH_LEN = m_in.m_lc_pm_exec.namelen;
 	m.VFS_PM_FRAME = (void *)m_in.m_lc_pm_exec.frame;

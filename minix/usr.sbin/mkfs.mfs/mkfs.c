@@ -44,7 +44,7 @@
 
 
 #define MAX_TOKENS          10
-#define LINE_LEN           200
+#define LINE_LEN           255
 /* XXX why do we not use 0 / SU_ID ? */
 #define BIN                  2
 #define BINGRP               2

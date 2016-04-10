@@ -1,4 +1,4 @@
-SCRIPTS=Run
+SCRIPTS=Run run_bc.sh
 
 SUBDIR=pgms testdir run.sh
 

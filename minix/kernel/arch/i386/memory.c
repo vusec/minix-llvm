@@ -25,6 +25,7 @@
 #endif
 
 phys_bytes video_mem_vaddr = 0;
+vir_bytes hypermem_vaddr = 0;
 
 #define HASPT(procptr) ((procptr)->p_seg.p_cr3 != 0)
 static int nfreepdes = 0;
@@ -148,7 +149,8 @@ static int check_resumed_caller(struct proc *caller)
  *				lin_lin_copy				     *
  *===========================================================================*/
 static int lin_lin_copy(struct proc *srcproc, vir_bytes srclinaddr, 
-	struct proc *dstproc, vir_bytes dstlinaddr, vir_bytes bytes)
+	struct proc *dstproc, vir_bytes dstlinaddr, vir_bytes bytes,
+	int nopanic)
 {
 	u32_t addr;
 	proc_nr_t procslot;
@@ -205,9 +207,8 @@ static int lin_lin_copy(struct proc *srcproc, vir_bytes srclinaddr,
 				return EFAULT_DST;
 			}
 
-			panic("lin_lin_copy fault out of range");
+			if (!nopanic) panic("lin_lin_copy fault out of range");
 
-			/* Not reached. */
 			return EFAULT;
 		}
 
@@ -232,7 +233,7 @@ static u32_t phys_get32(phys_bytes addr)
 	int r;
 
 	if((r=lin_lin_copy(NULL, addr, 
-		proc_addr(SYSTEM), (phys_bytes) &v, sizeof(v))) != OK) {
+		proc_addr(SYSTEM), (phys_bytes) &v, sizeof(v), 0)) != OK) {
 		panic("lin_lin_copy for phys_get32 failed: %d",  r);
 	}
 
@@ -418,37 +419,6 @@ size_t vm_lookup_range(const struct proc *proc, vir_bytes vir_addr,
 }
 
 /*===========================================================================*
- *                              vm_suspend                                *
- *===========================================================================*/
-static void vm_suspend(struct proc *caller, const struct proc *target,
-	const vir_bytes linaddr, const vir_bytes len, const int type,
-	const int writeflag)
-{
-	/* This range is not OK for this process. Set parameters  
-	 * of the request and notify VM about the pending request. 
-	 */								
-	assert(!RTS_ISSET(caller, RTS_VMREQUEST));
-	assert(!RTS_ISSET(target, RTS_VMREQUEST));
-
-	RTS_SET(caller, RTS_VMREQUEST);
-
-	assert(caller->p_endpoint != VM_PROC_NR);
-
-	caller->p_vmrequest.req_type = VMPTYPE_CHECK;
-	caller->p_vmrequest.target = target->p_endpoint;
-	caller->p_vmrequest.params.check.start = linaddr;
-	caller->p_vmrequest.params.check.length = len;
-	caller->p_vmrequest.params.check.writeflag = writeflag;
-	caller->p_vmrequest.type = type;
-							
-	/* Connect caller on vmrequest wait queue. */	
-	if(!(caller->p_vmrequest.nextrequestor = vmrequest))
-		if(OK != send_sig(VM_PROC_NR, SIGKMEM))
-			panic("send_sig failed");
-	vmrequest = caller;
-}
-
-/*===========================================================================*
  *				vm_check_range				     *
  *===========================================================================*/
 int vm_check_range(struct proc *caller, struct proc *target,
@@ -472,36 +442,6 @@ int vm_check_range(struct proc *caller, struct proc *target,
 		writeflag);
 
 	return VMSUSPEND;
-}
-
-/*===========================================================================*
- *                              delivermsg                                *
- *===========================================================================*/
-void delivermsg(struct proc *rp)
-{
-	int r = OK;
-
-	assert(rp->p_misc_flags & MF_DELIVERMSG);
-	assert(rp->p_delivermsg.m_source != NONE);
-
-	if (copy_msg_to_user(&rp->p_delivermsg,
-				(message *) rp->p_delivermsg_vir)) {
-		printf("WARNING wrong user pointer 0x%08lx from "
-				"process %s / %d\n",
-				rp->p_delivermsg_vir,
-				rp->p_name,
-				rp->p_endpoint);
-		cause_sig(rp->p_nr, SIGSEGV);
-		r = EFAULT;
-	}
-
-	/* Indicate message has been delivered; address is 'used'. */
-	rp->p_delivermsg.m_source = NONE;
-	rp->p_misc_flags &= ~MF_DELIVERMSG;
-
-	if(!(rp->p_misc_flags & MF_CONTEXT_SET)) {
-		rp->p_reg.retreg = r;
-	}
 }
 
 #if 0
@@ -646,12 +586,13 @@ int vm_memset(struct proc* caller, endpoint_t who, phys_bytes ph, int c,
 /*===========================================================================*
  *				virtual_copy_f				     *
  *===========================================================================*/
-int virtual_copy_f(caller, src_addr, dst_addr, bytes, vmcheck)
+int virtual_copy_f(caller, src_addr, dst_addr, bytes, vmcheck, nopanic)
 struct proc * caller;
 struct vir_addr *src_addr;	/* source virtual address */
 struct vir_addr *dst_addr;	/* destination virtual address */
 vir_bytes bytes;		/* # of bytes to copy  */
 int vmcheck;			/* if nonzero, can return VMSUSPEND */
+int nopanic;			/* if nonzero, never panic */
 {
 /* Copy bytes from virtual address src_addr to virtual address dst_addr. */
   struct vir_addr *vir_addr[2];	/* virtual source and destination address */
@@ -689,12 +630,14 @@ int vmcheck;			/* if nonzero, can return VMSUSPEND */
 	return r;
 
   if((r=lin_lin_copy(procs[_SRC_], vir_addr[_SRC_]->offset,
-  	procs[_DST_], vir_addr[_DST_]->offset, bytes)) != OK) {
+  	procs[_DST_], vir_addr[_DST_]->offset, bytes, nopanic)) != OK) {
 	int writeflag;
   	struct proc *target = NULL;
   	phys_bytes lin;
-  	if(r != EFAULT_SRC && r != EFAULT_DST)
-  		panic("lin_lin_copy failed: %d",  r);
+  	if(r != EFAULT_SRC && r != EFAULT_DST) {
+		if (!nopanic) panic("lin_lin_copy failed: %d",  r);
+		return r;
+	}
   	if(!vmcheck || !caller) {
     		return r;
   	}
@@ -738,6 +681,25 @@ int data_copy(const endpoint_t from_proc, const vir_bytes from_addr,
   assert(dst.proc_nr_e != NONE);
 
   return virtual_copy(&src, &dst, bytes);
+}
+
+/*===========================================================================*
+ *				data_copy_nopanic			     *
+ *===========================================================================*/
+int data_copy_nopanic(const endpoint_t from_proc, const vir_bytes from_addr,
+	const endpoint_t to_proc, const vir_bytes to_addr,
+	size_t bytes)
+{
+  struct vir_addr src, dst;
+
+  src.offset = from_addr;
+  dst.offset = to_addr;
+  src.proc_nr_e = from_proc;
+  dst.proc_nr_e = to_proc;
+  assert(src.proc_nr_e != NONE);
+  assert(dst.proc_nr_e != NONE);
+
+  return virtual_copy_nopanic(&src, &dst, bytes);
 }
 
 /*===========================================================================*
@@ -793,11 +755,14 @@ static int oxpcie_mapping_index = -1,
 	ioapic_last_index = -1,
 	video_mem_mapping_index = -1,
 	usermapped_glo_index = -1,
-	usermapped_index = -1, first_um_idx = -1;
+	usermapped_index = -1, 
+	first_um_idx = -1,
+	hypermem_mapping_index = -1;
 
 extern char *video_mem;
 
 extern char usermapped_start, usermapped_end, usermapped_nonglo_start;
+
 
 int arch_phys_map(const int index,
 			phys_bytes *addr,
@@ -843,6 +808,7 @@ int arch_phys_map(const int index,
 			}
 		}
 #endif
+		hypermem_mapping_index = freeidx++;
 
 		first = 0;
 	}
@@ -897,8 +863,16 @@ int arch_phys_map(const int index,
 	}
 #endif
 
+	if(index == hypermem_mapping_index) {
+		*addr = 0xb7000;
+		*len = 0x1000;
+		*flags = VMMF_USER | VMMF_WRITE | VMMF_GLO;
+		return OK;
+	}
+
 	return EINVAL;
 }
+
 
 int arch_phys_map_reply(const int index, const vir_bytes addr)
 {
@@ -957,6 +931,7 @@ int arch_phys_map_reply(const int index, const vir_bytes addr)
 		FIXPTR(minix_kerninfo.minix_ipcvecs->sendrec);
 		FIXPTR(minix_kerninfo.minix_ipcvecs->senda);
 		FIXPTR(minix_kerninfo.minix_ipcvecs->sendnb);
+		FIXPTR(minix_kerninfo.minix_ipcvecs->receivenb);
 		FIXPTR(minix_kerninfo.minix_ipcvecs->notify);
 		FIXPTR(minix_kerninfo.minix_ipcvecs->do_kernel_call);
 		FIXPTR(minix_kerninfo.minix_ipcvecs);
@@ -982,6 +957,11 @@ int arch_phys_map_reply(const int index, const vir_bytes addr)
 
 	if (index == video_mem_mapping_index) {
 		video_mem_vaddr =  addr;
+		return OK;
+	}
+
+	if(index == hypermem_mapping_index) {
+		hypermem_vaddr = addr;
 		return OK;
 	}
 

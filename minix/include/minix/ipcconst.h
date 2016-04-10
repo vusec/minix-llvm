@@ -10,6 +10,7 @@
 #define NOTIFY		   4	/* asynchronous notify */
 #define SENDNB             5    /* nonblocking send */
 #define MINIX_KERNINFO     6    /* request kernel info structure */
+#define RECEIVENB          7    /* nonblocking receive */
 #define SENDA		   16	/* asynchronous send */
 #define IPCNO_HIGHEST	SENDA
 /* Check that the message payload type doesn't grow past the maximum IPC payload size.
@@ -29,6 +30,7 @@
 				     behalf of a process, this is a trusted
 				     message, never reply to the sender
 				 */
+#define IPC_FLG_REPLY_OK	2 /* kernel deems it safe to reply */
 #define IPC_STATUS_FLAGS_SHIFT	16
 #define IPC_STATUS_FLAGS(flgs)	((flgs) << IPC_STATUS_FLAGS_SHIFT)
 #define IPC_STATUS_FLAGS_TEST(status, flgs)	\

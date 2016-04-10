@@ -519,7 +519,7 @@ fxp_t *fp;
 	if (tot_bufsize % 4096)
 		tot_bufsize += 4096 - (tot_bufsize % 4096);
 	alloc_bufsize= tot_bufsize;
-	alloc_buf= alloc_contig(alloc_bufsize, AC_ALIGN4K, &ph);
+	alloc_buf= alloc_contig(alloc_bufsize, AC_ALIGN4K|AC_NORELOC, &ph);
 	if (alloc_buf == NULL)
 		panic("fxp_init_buf: unable to alloc_contig size: %d",
 			alloc_bufsize);

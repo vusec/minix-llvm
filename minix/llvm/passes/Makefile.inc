@@ -4,3 +4,5 @@
 # This files is used with gmake, so do NOT add .include "..."
 #
 LLVMPREFIX?=../../../../../obj_llvm.i386/Release+Asserts
+
+#.include "../Makefile.inc"

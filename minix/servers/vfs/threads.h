@@ -29,6 +29,7 @@ struct worker_thread {
   cond_t w_event;
   struct fproc *w_fp;
   message w_m_in;
+  int w_m_in_status;
   message w_m_out;
   int w_err_code;
   message *w_sendrec;

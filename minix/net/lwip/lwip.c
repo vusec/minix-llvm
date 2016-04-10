@@ -61,9 +61,9 @@ static int sef_cb_init_fresh(__unused int type, __unused sef_init_info_t *info)
 	unsigned int hz;
 
 	char my_name[16];
-	int my_priv;
+	int my_priv, my_init;
 
-	err = sys_whoami(&lwip_ep, my_name, sizeof(my_name), &my_priv);
+	err = sys_whoami(&lwip_ep, my_name, sizeof(my_name), &my_priv, &my_init);
 	if (err != OK)
 		panic("Cannot get own endpoint");
 
@@ -149,8 +149,6 @@ static void sef_local_startup(void)
 	/* Register init callbacks. */
 	sef_setcb_init_fresh(sef_cb_init_fresh);
 	sef_setcb_init_restart(sef_cb_init_fresh);
-
-	/* No live update support for now. */
 
 	/* Let SEF perform startup. */
 	sef_startup();

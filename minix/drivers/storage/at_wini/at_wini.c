@@ -182,7 +182,6 @@ static void sef_local_startup(void)
 {
   /* Register init callbacks. */
   sef_setcb_init_fresh(sef_cb_init_fresh);
-  sef_setcb_init_lu(sef_cb_init_fresh);
 
   /* Register live update callbacks. */
   sef_setcb_lu_prepare(sef_cb_lu_prepare);
@@ -204,7 +203,7 @@ static int sef_cb_init_fresh(int type, sef_init_info_t *UNUSED(info))
 
   system_hz = sys_hz();
 
-  if (!(tmp_buf = alloc_contig(2*DMA_BUF_SIZE, AC_ALIGN4K, NULL)))
+  if (!(tmp_buf = alloc_contig(2*DMA_BUF_SIZE, AC_ALIGN4K|AC_NORELOC, NULL)))
 	panic("unable to allocate temporary buffer");
 
   w_identify_wakeup_ticks = WAKEUP_TICKS;
@@ -268,8 +267,8 @@ static int init_params(void)
 	printf("at_wini%ld: DMA for ATA devices is disabled.\n", w_instance);
   } else {
 	/* Ask for anonymous memory for DMA, that is physically contiguous. */
-	dma_buf = alloc_contig(ATA_DMA_BUF_SIZE, 0, &dma_buf_phys);
-	prdt = alloc_contig(PRDT_BYTES, 0, &prdt_phys);
+	dma_buf = alloc_contig(ATA_DMA_BUF_SIZE, AC_NORELOC, &dma_buf_phys);
+	prdt = alloc_contig(PRDT_BYTES, AC_NORELOC, &prdt_phys);
 	if(!dma_buf || !prdt) {
 		disable_dma = 1;
 		printf("at_wini%ld: no dma\n", w_instance);

@@ -242,7 +242,6 @@ static void lance_dump()
  *===========================================================================*/
 static void do_other(const message *m_ptr, int ipc_status)
 {
-
    if (is_ipc_notify(ipc_status) && m_ptr->m_source == TTY_PROC_NR)
       lance_dump();
 }

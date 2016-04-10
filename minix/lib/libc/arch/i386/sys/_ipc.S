@@ -74,6 +74,20 @@ ENTRY(_ipc_sendnb_intr)
 	pop	%ebp
 	ret
 
+ENTRY(_ipc_receivenb_intr)
+	push	%ebp
+	movl	%esp, %ebp
+	push	%ebx
+	movl	SRC_DST(%ebp), %eax	/* eax = dest-src */
+	movl	MESSAGE(%ebp), %ebx	/* ebx = message pointer */
+	movl	$RECEIVENB, %ecx	/* _ipc_receivenb(src, ptr) */
+	int	$IPCVEC_INTR	/* trap to the kernel */
+	movl	STATUS(%ebp), %ecx	/* ecx = status pointer */
+	movl	%ebx, (%ecx)
+	pop	%ebx
+	pop	%ebp
+	ret
+
 ENTRY(_ipc_senda_intr)
 	push	%ebp
 	movl	%esp, %ebp

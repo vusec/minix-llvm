@@ -61,6 +61,20 @@ ENTRY(_ipc_sendnb_intr)
 	pop	{fp}
 	bx	lr
 
+ENTRY(_ipc_receivenb_intr)
+	push	{fp}
+	mov	fp, sp
+	push	{r2}         /* save status ptr */
+	mov	r2, r1       /* r2 = msg ptr */
+	mov	r1, r0       /* r1 = src_dest */
+	mov	r0, #RECEIVENB /* _ipc_receivenb(src, ptr) */
+	mov	r3, #IPCVEC_INTR  /* r3 determines the SVC type */
+	svc	#0           /* trap to kernel */
+	pop	{r2}         /* restore status ptr */
+	str	r1, [r2]
+	pop	{fp}
+	bx	lr
+
 ENTRY(_ipc_senda_intr)
 	push	{fp}
 	mov	fp, sp

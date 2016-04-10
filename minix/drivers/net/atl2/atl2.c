@@ -239,10 +239,10 @@ static int
 atl2_alloc_dma(void)
 {
 
-	state.txd_base = alloc_contig(ATL2_TXD_BUFSIZE, AC_ALIGN4K,
-	    &state.txd_phys);
+	state.txd_base = alloc_contig(ATL2_TXD_BUFSIZE,
+	    AC_ALIGN4K|AC_NORELOC, &state.txd_phys);
 	state.txs_base = alloc_contig(ATL2_TXS_COUNT * sizeof(uint32_t),
-	    AC_ALIGN4K, &state.txs_phys);
+	    AC_ALIGN4K|AC_NORELOC, &state.txs_phys);
 
 	/*
 	 * The data buffer in each RxD descriptor must be 128-byte aligned.
@@ -250,7 +250,8 @@ atl2_alloc_dma(void)
 	 */
 	state.rxd_align = 128 - offsetof(rxd_t, data);
 	state.rxd_base_u = alloc_contig(state.rxd_align +
-	    ATL2_RXD_COUNT * ATL2_RXD_SIZE, AC_ALIGN4K, &state.rxd_phys);
+	    ATL2_RXD_COUNT * ATL2_RXD_SIZE, AC_ALIGN4K|AC_NORELOC,
+	    &state.rxd_phys);
 
 	/* Unlike mmap, alloc_contig returns NULL on failure. */
 	if (!state.txd_base || !state.txs_base || !state.rxd_base_u)

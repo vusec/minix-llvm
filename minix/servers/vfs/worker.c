@@ -11,11 +11,7 @@ static unsigned int pending;
 static unsigned int busy;
 static int block_all;
 
-#ifdef MKCOVERAGE
-# define TH_STACKSIZE (40 * 1024)
-#else
-# define TH_STACKSIZE (28 * 1024)
-#endif
+# define TH_STACKSIZE (128 * 1024)
 
 #define ASSERTW(w) assert((w) >= &workers[0] && (w) < &workers[NR_WTHREADS])
 
@@ -200,9 +196,14 @@ static void *worker_main(void *arg)
 	/* Perform normal work, if any. */
 	if (fp->fp_func != NULL) {
 		self->w_m_in = fp->fp_msg;
+		self->w_m_in_status = fp->fp_msg_status;
 		err_code = OK;
 
+		mthread_checkpoint();
+		sef_handle_message(&self->w_m_in, self->w_m_in_status);
 		fp->fp_func();
+		mthread_checkpoint();
+		sef_handle_message(NULL, 0);
 
 		fp->fp_func = NULL;	/* deliberately unset AFTER the call */
 	}
@@ -210,8 +211,13 @@ static void *worker_main(void *arg)
 	/* Perform postponed PM work, if any. */
 	if (fp->fp_flags & FP_PM_WORK) {
 		self->w_m_in = fp->fp_pm_msg;
+		self->w_m_in_status = fp->fp_pm_msg_status;
 
+		mthread_checkpoint();
+		sef_handle_message(&self->w_m_in, self->w_m_in_status);
 		service_pm_postponed();
+		mthread_checkpoint();
+		sef_handle_message(NULL, 0);
 
 		fp->fp_flags &= ~FP_PM_WORK;
 	}
@@ -300,7 +306,7 @@ static void worker_try_activate(struct fproc *rfp, int use_spare)
  *				worker_start				     *
  *===========================================================================*/
 void worker_start(struct fproc *rfp, void (*func)(void), message *m_ptr,
-	int use_spare)
+	int use_spare, int ipc_status)
 {
 /* Schedule work to be done by a worker thread. The work is bound to the given
  * process. If a function pointer is given, the work is considered normal work,
@@ -353,9 +359,11 @@ void worker_start(struct fproc *rfp, void (*func)(void), message *m_ptr,
   /* Save the work to be performed. */
   if (!is_pm_work) {
 	rfp->fp_msg = *m_ptr;
+	rfp->fp_msg_status = ipc_status;
 	rfp->fp_func = func;
   } else {
 	rfp->fp_pm_msg = *m_ptr;
+	rfp->fp_pm_msg_status = ipc_status;
 	rfp->fp_flags |= FP_PM_WORK;
   }
 

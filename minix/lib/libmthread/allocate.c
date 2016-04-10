@@ -422,8 +422,9 @@ void *arg;
 # error "Unsupported platform"
 #endif
 	stacksize = guarded_stacksize;
-	if (munmap(guard_start, MTHREAD_GUARDSIZE) != 0)
-		mthread_panic("unable to unmap stack space for guard");
+        if (mmap(guard_start, MTHREAD_GUARDSIZE, PROT_NONE,
+		MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0) != guard_start)
+		mthread_panic("unable to overmap stack space for guard");
 	tcb->m_context.uc_stack.ss_sp = guard_end;
   } else
   	tcb->m_context.uc_stack.ss_sp = stackaddr;

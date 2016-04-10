@@ -12,7 +12,8 @@
 int max_error = 4;
 #include "common.h"
 
-#define ITERATIONS 10
+#define ITERATIONS_FULL  10
+#define ITERATIONS_QUICK  1
 
 volatile int glov, gct;
 int subtest;
@@ -36,7 +37,7 @@ char *argv[];
 
   if (argc == 2) m = atoi(argv[1]);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 00001) test1a();
 	if (m & 00002) test1b();
   }

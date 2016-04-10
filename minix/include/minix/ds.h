@@ -5,8 +5,14 @@
 
 #ifdef _MINIX_SYSTEM
 
+/* Type definitions for the Data Store Server. */
 #include <sys/types.h>
 #include <minix/endpoint.h>
+#include <minix/config.h>
+#include <minix/ds.h>
+#include <minix/bitmap.h>
+#include <minix/param.h>
+#include <regex.h>
 
 /* Flags. */
 #define DSF_IN_USE		0x001	/* entry is in use */
@@ -67,6 +73,33 @@ int ds_delete_label(const char *ds_name);
 /* Subscribe and check. */
 int ds_subscribe(const char *regex, int flags);
 int ds_check(char *ds_name, int *type, endpoint_t *owner_e);
+
+/* DS data structures. */
+
+#define NR_DS_KEYS      (2*NR_SYS_PROCS)        /* number of entries */
+#define NR_DS_SUBS      (4*NR_SYS_PROCS)        /* number of subscriptions */
+
+struct data_store {
+	int	flags;
+	char	key[DS_MAX_KEYLEN];	/* key to lookup information */
+	char	owner[DS_MAX_KEYLEN];
+
+	union dsi_u {
+		unsigned u32;
+		struct dsi_mem {
+			void *data;
+			size_t length;
+			size_t reallen;
+		} mem;
+	} u;
+};
+
+struct subscription {
+	int		flags;
+	char		owner[DS_MAX_KEYLEN];
+	regex_t		regex;
+	bitchunk_t	old_subs[BITMAP_CHUNKS(NR_DS_KEYS)];
+};
 
 #endif /* _MINIX_SYSTEM */
 

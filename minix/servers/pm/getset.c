@@ -115,7 +115,6 @@ int do_set()
 		rmp->mp_effuid = uid;
 
 		m.m_type = VFS_PM_SETUID;
-		m.VFS_PM_ENDPT = rmp->mp_endpoint;
 		m.VFS_PM_EID = rmp->mp_effuid;
 		m.VFS_PM_RID = rmp->mp_realuid;
 
@@ -130,7 +129,6 @@ int do_set()
 		rmp->mp_effgid = gid;
 
 		m.m_type = VFS_PM_SETGID;
-		m.VFS_PM_ENDPT = rmp->mp_endpoint;
 		m.VFS_PM_EID = rmp->mp_effgid;
 		m.VFS_PM_RID = rmp->mp_realgid;
 
@@ -163,7 +161,6 @@ int do_set()
 		rmp->mp_ngroups = ngroups;
 
 		m.m_type = VFS_PM_SETGROUPS;
-		m.VFS_PM_ENDPT = rmp->mp_endpoint;
 		m.VFS_PM_GROUP_NO = rmp->mp_ngroups;
 		m.VFS_PM_GROUP_ADDR = (char *) rmp->mp_sgroups;
 
@@ -173,7 +170,6 @@ int do_set()
 		rmp->mp_procgrp = rmp->mp_pid;
 
 		m.m_type = VFS_PM_SETSID;
-		m.VFS_PM_ENDPT = rmp->mp_endpoint;
 
 		break;
 

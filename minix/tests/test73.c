@@ -53,6 +53,7 @@ main(int argc, char *argv[])
 	if(getenv(BIGVARNAME)) big = 1;
 
 	if(big) strcpy(pipefn, "pipe_testvm_big");
+	else if (get_setting_quick_test()) strcpy(pipefn, "pipe_testvm_quick");
 	else strcpy(pipefn, "pipe_testvm");
 
 	umask(0);

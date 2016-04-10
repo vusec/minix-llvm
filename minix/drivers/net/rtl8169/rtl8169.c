@@ -490,7 +490,7 @@ static void rl_init_buf(re_t *rep)
 	if (tot_bufsize % 4096)
 		tot_bufsize += 4096 - (tot_bufsize % 4096);
 
-	if (!(mallocbuf = alloc_contig(tot_bufsize, AC_ALIGN64K, &buf)))
+	if (!(mallocbuf = alloc_contig(tot_bufsize, AC_ALIGN64K|AC_NORELOC, &buf)))
 		panic("Couldn't allocate kernel buffer");
 
 	/* Rx Descriptor */

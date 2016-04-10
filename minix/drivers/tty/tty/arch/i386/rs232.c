@@ -441,9 +441,8 @@ void rs_init(tty_t *tp)
    * for all requests on it from userland. (The kernel will use it.)
    */
   if(env_get_param(SERVARNAME, l, sizeof(l)-1) == OK && atoi(l) == line) {
-	printf("TTY: not initializing rs232 line %d (in use by kernel)\n",
+	printf("TTY: warning: rs232 line %d in use by kernel\n",
 		line);
-	return;
   }
 
   rs = tp->tty_priv = &rs_lines[line];

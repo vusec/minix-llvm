@@ -18,7 +18,7 @@
 
 #include <sys/dirent.h>
 
-union fsdata_u {
+union ixfer_fsdata_u {
     char b__data[1];		     /* ordinary user data */
 /* directory block */
     struct direct b__dir[1];    
@@ -34,11 +34,11 @@ union fsdata_u {
 
 
 /* These defs make it possible to use to bp->b_data instead of bp->b.b__data */
-#define b_data(b)   ((union fsdata_u *) b->data)->b__data
-#define b_dir(b)    ((union fsdata_u *) b->data)->b__dir
-#define b_v2_ind(b) ((union fsdata_u *) b->data)->b__v2_ind
-#define b_v2_ino(b) ((union fsdata_u *) b->data)->b__v2_ino
-#define b_bitmap(b) ((union fsdata_u *) b->data)->b__bitmap
+#define b_data(b)   ((union ixfer_fsdata_u *) b->data)->b__data
+#define b_dir(b)    ((union ixfer_fsdata_u *) b->data)->b__dir
+#define b_v2_ind(b) ((union ixfer_fsdata_u *) b->data)->b__v2_ind
+#define b_v2_ino(b) ((union ixfer_fsdata_u *) b->data)->b__v2_ino
+#define b_bitmap(b) ((union ixfer_fsdata_u *) b->data)->b__bitmap
 
 #endif
 

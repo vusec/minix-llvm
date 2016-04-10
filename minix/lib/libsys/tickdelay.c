@@ -14,6 +14,7 @@ int tickdelay(clock_t ticks)
  */
     message m, m_alarm;
     int s;
+    int status;
 
     if (ticks <= 0) return OK;		/* check for robustness */
 
@@ -22,7 +23,7 @@ int tickdelay(clock_t ticks)
     s = _kernel_call(SYS_SETALARM, &m);
     if (s != OK) return(s);
 
-    sef_receive(CLOCK,&m_alarm);		/* await synchronous alarm */
+    ipc_receive(CLOCK,&m_alarm,&status);	/* await synchronous alarm */
 
     /* Check if we must reschedule the current alarm. */
     if (m.m_lsys_krn_sys_setalarm.time_left > 0 &&

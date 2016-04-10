@@ -238,6 +238,7 @@ static void check_realpath_recurse(const char *path, int depth)
 }
 
 #define PATH_DEPTH 4
+#define PATH_DEPTH_QUICK 3
 #define PATH_BASE "/."
 #define L(x) PATH_BASE "/link_" #x ".tmp"
 
@@ -314,7 +315,8 @@ int main(int argc, char **argv)
 	if (symlink(basepath, addbasepath(buffer1, L(2))) < 0) ERR;
 
 	/* perform some tests */
-	check_realpath_recurse(basepath, PATH_DEPTH);
+	check_realpath_recurse(basepath,
+		get_setting_quick_test() ? PATH_DEPTH_QUICK : PATH_DEPTH);
 
 	/* now try with recursive symlinks */
 	if (symlink(addbasepath(buffer1, L(3)), addbasepath(buffer2, L(3))) < 0) ERR;

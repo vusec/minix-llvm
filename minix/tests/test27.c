@@ -16,7 +16,8 @@
 int max_error = 	4;
 #include "common.h"
 
-#define ITERATIONS      2
+#define ITERATIONS_FULL  2
+#define ITERATIONS_QUICK 1
 
 #define System(cmd)	if (system(cmd) != 0) printf("``%s'' failed\n", cmd)
 #define Chdir(dir)	if (chdir(dir) != 0) printf("Can't goto %s\n", dir)
@@ -42,7 +43,7 @@ int main(int argc, char *argv[])
   superuser = (getuid() == 0);
   makelongnames();
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (m & 0001) test27a();
 	if (m & 0002) test27b();
 	if (m & 0004) test27c();

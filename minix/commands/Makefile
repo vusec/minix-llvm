@@ -18,7 +18,7 @@ SUBDIR=	add_route arp at backup btrace \
 	mount mt netconf \
 	nonamed \
 	postinstall prep printroot \
-	profile progressbar pr_routes ps pwdauth \
+	profile progressbar proxmount pr_routes ps pwdauth \
 	ramdisk rarpd rawspeed rcp readclock \
 	remsync rget rlogin \
 	rotate rsh rshd service setup \

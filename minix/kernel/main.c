@@ -23,6 +23,7 @@
 #include "direct_utils.h"
 #include "hw_intr.h"
 #include "arch_proto.h"
+#include "hypermem-lowlevel.h"
 
 #ifdef CONFIG_SMP
 #include "smp.h"
@@ -112,7 +113,6 @@ void bsp_finish_booting(void)
   NOT_REACHABLE;
 }
 
-
 /*===========================================================================*
  *			kmain 	                             		*
  *===========================================================================*/
@@ -154,7 +154,12 @@ void kmain(kinfo_t *local_cbi)
  
    DEBUGEXTRA(("main()\n"));
 
-   proc_init();
+  /* Clear the process table. Anounce each slot as empty and set up mappings 
+   * for proc_addr() and proc_nr() macros. Do the same for the table with 
+   * privilege structures for the system processes and the ipc filter pool.
+   */
+  proc_init();
+  IPCF_POOL_INIT();
 
    if(NR_BOOT_MODULES != kinfo.mbi.mi_mods_count)
    	panic("expecting %d boot processes/modules, found %d",
@@ -211,6 +216,8 @@ void kmain(kinfo_t *local_cbi)
 	    else if(iskerneln(proc_nr)) {
                 /* Privilege flags. */
                 priv(rp)->s_flags = (proc_nr == IDLE ? IDL_F : TSK_F);
+                /* Init flags. */
+                priv(rp)->s_init_flags = TSK_I;
                 /* Allowed traps. */
                 priv(rp)->s_trap_mask = (proc_nr == CLOCK 
                     || proc_nr == SYSTEM  ? CSK_T : TSK_T);
@@ -221,6 +228,7 @@ void kmain(kinfo_t *local_cbi)
             else {
 	    	assert(isrootsysn(proc_nr));
                 priv(rp)->s_flags= RSYS_F;        /* privilege flags */
+                priv(rp)->s_init_flags = SRV_I;   /* init flags */
                 priv(rp)->s_trap_mask= SRV_T;     /* allowed traps */
                 ipc_to_m = SRV_M;                 /* allowed targets */
                 kcalls = SRV_KC;                  /* allowed kernel calls */
@@ -283,6 +291,7 @@ void kmain(kinfo_t *local_cbi)
   IPCNAME(SENDREC);
   IPCNAME(NOTIFY);
   IPCNAME(SENDNB);
+  IPCNAME(RECEIVENB);
   IPCNAME(SENDA);
 
   /* System and processes initialization */
@@ -290,6 +299,9 @@ void kmain(kinfo_t *local_cbi)
   DEBUGEXTRA(("system_init()... "));
   system_init();
   DEBUGEXTRA(("done\n"));
+
+  /* Do the sef fault injection init */
+  do_sef_fi_init(&sef_fi_callbacks_kernel);
 
   /* The bootstrap phase is over, so we can add the physical
    * memory used for it to the free list.
@@ -352,7 +364,14 @@ void prepare_shutdown(const int how)
    */
   printf("MINIX will now be shut down ...\n");
   tmr_arg(&shutdown_timer)->ta_int = how;
+
+ if(how & RB_NOSYNC) {
+    /* caller wants us to disappear without scheduling any more processes */
+    minix_shutdown(&shutdown_timer);
+    panic("should not return");
+ } else {
   set_kernel_timer(&shutdown_timer, get_monotonic() + system_hz, minix_shutdown);
+ }
 }
 
 /*===========================================================================*
@@ -417,6 +436,13 @@ void cstart()
 	system_hz = atoi(value);
   if(!value || system_hz < 2 || system_hz > 50000)	/* sanity check */
 	system_hz = DEFAULT_HZ;
+
+  /* Get memory parameters. */
+  value = env_get("ac_layout");
+  if(value && atoi(value)) {
+        kinfo.user_sp = (vir_bytes) USR_STACKTOP_COMPACT;
+        kinfo.user_end = (vir_bytes) USR_DATATOP_COMPACT;
+  }
 
   DEBUGEXTRA(("cstart\n"));
 

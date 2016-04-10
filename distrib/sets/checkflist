@@ -107,12 +107,14 @@ IGNORE_REGEXP_SYSPKG="^\./var/db/syspkg(\$|/)"
 IGNORE_REGEXP_METALOG="^\./METALOG(\..*)?\$"
 IGNORE_REGEXP_SETS="^\./SETS\..*\$"
 IGNORE_REGEXP_MTREE="^\./etc/mtree/set\.[a-z]*\$"
+IGNORE_REGEXP_RANDOM="^\./usr/adm/random.dat\$"
 
 	${EGREP} -v \
 		-e "${IGNORE_REGEXP_SYSPKG}" \
 		-e "${IGNORE_REGEXP_METALOG}" \
 		-e "${IGNORE_REGEXP_SETS}" \
-		-e "${IGNORE_REGEXP_MTREE}"
+		-e "${IGNORE_REGEXP_MTREE}" \
+		-e "${IGNORE_REGEXP_RANDOM}"
 }
 
 #

@@ -351,7 +351,7 @@ static void rl_init_buf(re_t *rep)
 
 #define BUF_ALIGNMENT (64*1024)
 
-	if (!(mallocbuf = alloc_contig(BUF_ALIGNMENT + tot_bufsize, 0, &buf)))
+	if (!(mallocbuf = alloc_contig(BUF_ALIGNMENT + tot_bufsize, AC_NORELOC, &buf)))
 		panic("Couldn't allocate kernel buffer");
 
 	/* click-align mallocced buffer. this is what we used to get

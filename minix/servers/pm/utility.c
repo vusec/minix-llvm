@@ -126,9 +126,12 @@ message *m_ptr;
 /* Send a request to VFS, without blocking.
  */
   int r;
+  int p;
 
   if (rmp->mp_flags & VFS_CALL)
 	panic("tell_vfs: not idle: %d", m_ptr->m_type);
+
+  m_ptr->VFS_PM_ENDPT = rmp->mp_endpoint;
 
   r = asynsend3(VFS_PROC_NR, m_ptr, AMF_NOREPLY);
   if (r != OK)

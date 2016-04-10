@@ -14,6 +14,9 @@
 #include <minix/syslib.h>
 #include <minix/safecopies.h>
 #include <minix/bitmap.h>
+#include <minix/rs.h>
+
+#include <sys/mman.h>
 
 #include <errno.h>
 #include <string.h>
@@ -71,10 +74,12 @@ int do_rs_update(message *m_ptr)
 	endpoint_t src_e, dst_e, reply_e;
 	int src_p, dst_p;
 	struct vmproc *src_vmp, *dst_vmp;
-	int r;
+	int r, sys_upd_flags;
 
 	src_e = m_ptr->m_lsys_vm_update.src;
 	dst_e = m_ptr->m_lsys_vm_update.dst;
+        sys_upd_flags = m_ptr->m_lsys_vm_update.flags;
+        reply_e = m_ptr->m_source;
 
 	/* Lookup slots for source and destination process. */
 	if(vm_isokendpt(src_e, &src_p) != OK) {
@@ -88,8 +93,17 @@ int do_rs_update(message *m_ptr)
 	}
 	dst_vmp = &vmproc[dst_p];
 
+	/* Check flags. */
+	if((sys_upd_flags & (SF_VM_ROLLBACK|SF_VM_NOMMAP)) == 0) {
+	        /* Can't preallocate when transfering mmapped regions. */
+	        if(map_region_lookup_type(dst_vmp, VR_PREALLOC_MAP)) {
+			return ENOSYS;
+	        }
+	}
+
 	/* Let the kernel do the update first. */
-	r = sys_update(src_e, dst_e);
+	r = sys_update(src_e, dst_e,
+	    sys_upd_flags & SF_VM_ROLLBACK ? SYS_UPD_ROLLBACK : 0);
 	if(r != OK) {
 		return r;
 	}
@@ -99,21 +113,22 @@ int do_rs_update(message *m_ptr)
 	if(r != OK) {
 		return r;
 	}
-	r = swap_proc_dyn_data(src_vmp, dst_vmp);
+	r = swap_proc_dyn_data(src_vmp, dst_vmp, sys_upd_flags);
 	if(r != OK) {
 		return r;
 	}
 	pt_bind(&src_vmp->vm_pt, src_vmp);
 	pt_bind(&dst_vmp->vm_pt, dst_vmp);
 
-	/* Reply, update-aware. */
-	reply_e = m_ptr->m_source;
-	if(reply_e == src_e) reply_e = dst_e;
-	else if(reply_e == dst_e) reply_e = src_e;
-	m_ptr->m_type = OK;
-	r = ipc_send(reply_e, m_ptr);
-	if(r != OK) {
-		panic("ipc_send() error");
+	/* Reply in case of external request, update-aware. */
+	if(reply_e != VM_PROC_NR) {
+            if(reply_e == src_e) reply_e = dst_e;
+            else if(reply_e == dst_e) reply_e = src_e;
+            m_ptr->m_type = OK;
+            r = ipc_send(reply_e, m_ptr);
+            if(r != OK) {
+                    panic("ipc_send() error");
+            }
 	}
 
 	return SUSPEND;
@@ -131,6 +146,19 @@ static int rs_memctl_make_vm_instance(struct vmproc *new_vm_vmp)
 
 	this_vm_vmp = &vmproc[VM_PROC_NR];
 
+	pt_assert(&this_vm_vmp->vm_pt);
+
+	/* Check if the operation is allowed. */
+	assert(num_vm_instances == 1 || num_vm_instances == 2);
+	if(num_vm_instances == 2) {
+		printf("VM can currently support no more than 2 VM instances at the time.");
+		return EPERM;
+	}
+
+	/* Copy settings from current VM. */
+	new_vm_vmp->vm_flags |= VMF_VM_INSTANCE;
+	num_vm_instances++;
+
 	/* Pin memory for the new VM instance. */
 	r = map_pin_memory(new_vm_vmp);
 	if(r != OK) {
@@ -142,11 +170,13 @@ static int rs_memctl_make_vm_instance(struct vmproc *new_vm_vmp)
 	 */
 	flags = 0;
 	verify = FALSE;
-	r = pt_ptalloc_in_range(&this_vm_vmp->vm_pt, 0, 0, flags, verify);
+	r = pt_ptalloc_in_range(&this_vm_vmp->vm_pt,
+		VM_OWN_HEAPBASE, VM_DATATOP, flags, verify);
 	if(r != OK) {
 		return r;
 	}
-	r = pt_ptalloc_in_range(&new_vm_vmp->vm_pt, 0, 0, flags, verify);
+	r = pt_ptalloc_in_range(&new_vm_vmp->vm_pt,
+		VM_OWN_HEAPBASE, VM_DATATOP, flags, verify);
 	if(r != OK) {
 		return r;
 	}
@@ -161,6 +191,69 @@ static int rs_memctl_make_vm_instance(struct vmproc *new_vm_vmp)
 		return r;
 	}
 
+	pt_assert(&this_vm_vmp->vm_pt);
+	pt_assert(&new_vm_vmp->vm_pt);
+
+	return OK;
+}
+
+/*===========================================================================*
+ *		           rs_memctl_heap_prealloc			     *
+ *===========================================================================*/
+static int rs_memctl_heap_prealloc(struct vmproc *vmp,
+	vir_bytes *addr, size_t *len)
+{
+	struct vir_region *data_vr;
+	vir_bytes bytes;
+
+	if(*len <= 0) {
+		return EINVAL;
+	}
+	data_vr = region_search(&vmp->vm_regions_avl, VM_MMAPBASE, AVL_LESS);
+	*addr = data_vr->vaddr + data_vr->length;
+	bytes = *addr + *len;
+
+	return real_brk(vmp, bytes);
+}
+
+/*===========================================================================*
+ *		           rs_memctl_map_prealloc			     *
+ *===========================================================================*/
+static int rs_memctl_map_prealloc(struct vmproc *vmp,
+	vir_bytes *addr, size_t *len)
+{
+	struct vir_region *vr;
+	if(*len <= 0) {
+		return EINVAL;
+	}
+	*len = CLICK_CEIL(*len);
+
+	if(!(vr = map_page_region(vmp, VM_DATATOP - *len, VM_DATATOP, *len,
+		VR_ANON|VR_WRITABLE|VR_UNINITIALIZED, MF_PREALLOC, &mem_type_anon))) {
+		return ENOMEM;
+	}
+	vr->flags |= VR_PREALLOC_MAP;
+	*addr = vr->vaddr;
+	return OK;
+}
+
+/*===========================================================================*
+ *		         rs_memctl_get_prealloc_map			     *
+ *===========================================================================*/
+static int rs_memctl_get_prealloc_map(struct vmproc *vmp,
+	vir_bytes *addr, size_t *len)
+{
+	struct vir_region *vr;
+
+	vr = map_region_lookup_type(vmp, VR_PREALLOC_MAP);
+	if(!vr) {
+		*addr = 0;
+		*len = 0;
+	}
+	else {
+		*addr = vr->vaddr;
+		*len = vr->length;
+	}
 	return OK;
 }
 
@@ -187,22 +280,22 @@ int do_rs_memctl(message *m_ptr)
 	switch(req)
 	{
 	case VM_RS_MEM_PIN:
-
-		/* Do not perform VM_RS_MEM_PIN yet - it costs the full
-		 * size of the RS stack (64MB by default) in memory,
-		 * and it's needed for functionality that isn't complete /
-		 * merged in current Minix (surviving VM crashes).
-		 */
-
-#if 0
+		/* Only actually pin RS memory if VM can recover from crashes (saves memory). */
+		if (num_vm_instances <= 1)
+			return OK;
 		r = map_pin_memory(vmp);
 		return r;
-#else
-		return OK;
-#endif
-
 	case VM_RS_MEM_MAKE_VM:
 		r = rs_memctl_make_vm_instance(vmp);
+		return r;
+	case VM_RS_MEM_HEAP_PREALLOC:
+		r = rs_memctl_heap_prealloc(vmp, (vir_bytes*) &m_ptr->VM_RS_CTL_ADDR, (size_t*) &m_ptr->VM_RS_CTL_LEN);
+		return r;
+	case VM_RS_MEM_MAP_PREALLOC:
+		r = rs_memctl_map_prealloc(vmp, (vir_bytes*) &m_ptr->VM_RS_CTL_ADDR, (size_t*) &m_ptr->VM_RS_CTL_LEN);
+		return r;
+	case VM_RS_MEM_GET_PREALLOC_MAP:
+		r = rs_memctl_get_prealloc_map(vmp, (vir_bytes*) &m_ptr->VM_RS_CTL_ADDR, (size_t*) &m_ptr->VM_RS_CTL_LEN);
 		return r;
 	default:
 		printf("do_rs_memctl: bad request %d\n", req);

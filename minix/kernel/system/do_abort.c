@@ -20,6 +20,8 @@ int do_abort(struct proc * caller, message * m_ptr)
  */
   int how = m_ptr->m_lsys_krn_sys_abort.how;
 
+  hypermem_shutdown();
+
   /* Now prepare to shutdown MINIX. */
   prepare_shutdown(how);
   return(OK);				/* pro-forma (really EDISASTER) */

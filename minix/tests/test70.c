@@ -26,7 +26,7 @@
 #define SEEKWINDOW 1000
 
 static int
-doseeks(int seekbase)
+doseeks(int seekbase, int quick_test)
 {
 	char template[30] = "tempfile.XXXXXXXX";
 	int iteration, fd = mkstemp(template);
@@ -43,15 +43,16 @@ doseeks(int seekbase)
 	 * sure we get the right return value back, while this happens
 	 * in a concurrent process too.
 	 */
-#define ITERATIONS 5000
-	for(iteration = 0; iteration < ITERATIONS; iteration++) {
+#define ITERATIONS_FULL  5000
+#define ITERATIONS_QUICK   10
+	for(iteration = 0; iteration < ITERATIONS_ADAPTIVE; iteration++) {
 		int o;
 		for(o = seekbase; o < limit; o++) {
 			int r;
 			if((r=lseek(fd, o, SEEK_SET)) != o) {
 				if(r < 0) perror("lseek");
 				fprintf(stderr, "%d/%d  %d != %d\n",
-					iteration, ITERATIONS, r, o);
+					iteration, ITERATIONS_ADAPTIVE, r, o);
 				e(5);
 				return 1;
 			}	
@@ -66,13 +67,14 @@ main()
 {
   start(70);
   pid_t f;
+  int quick_test = get_setting_quick_test();
   int result;
 
   if((f=fork()) < 0) { e(1); quit(); }
 
-  if(f == 0) { exit(doseeks(0)); }
+  if(f == 0) { exit(doseeks(0, quick_test)); }
 
-  if(doseeks(SEEKWINDOW)) { e(10); }
+  if(doseeks(SEEKWINDOW, quick_test)) { e(10); }
 
   if (waitpid(f, &result, 0) == -1) e(11);
   if (WEXITSTATUS(result) != 0) e(12);

@@ -48,9 +48,11 @@ int sys_schedctl(unsigned flags, endpoint_t proc_ep, int priority, int
 #define sys_resume(proc_ep) sys_runctl(proc_ep, RC_RESUME, 0)
 int sys_runctl(endpoint_t proc_ep, int action, int flags);
 
-int sys_update(endpoint_t src_ep, endpoint_t dst_ep);
-int sys_statectl(int request);
+int sys_update(endpoint_t src_ep, endpoint_t dst_ep, int flags);
+int sys_statectl(int request, void* address, int length);
 int sys_privctl(endpoint_t proc_ep, int req, void *p);
+int sys_privctl_get_rs_ready(void);
+int sys_privctl_set_rs_ready(int);
 int sys_privquery_mem(endpoint_t proc_ep, phys_bytes physstart,
 	phys_bytes physlen);
 int sys_setgrant(cp_grant_t *grants, int ngrants);
@@ -101,6 +103,7 @@ int free_contig(void *addr, size_t len);
 #define AC_LOWER16M	0x02
 #define AC_ALIGN64K	0x04
 #define AC_LOWER1M	0x08
+#define AC_NORELOC      0x10
 
 /* Clock functionality: get system times, (un)schedule an alarm call, or
  * retrieve/set a process-virtual timer.
@@ -187,10 +190,11 @@ int sys_diagctl(int ctl, char *arg1, int arg2);
 #define sys_getidletsc(dst)	sys_getinfo(GET_IDLETSC, dst, 0,0,0)
 #define sys_getregs(dst,nr)	sys_getinfo(GET_REGS, dst, 0,0, nr)
 #define sys_getrusage(dst, nr)  sys_getinfo(GET_RUSAGE, dst, 0,0, nr)
+#define sys_gethypermem(dst)	sys_getinfo(GET_HYPERMEM, dst, 0,0,0)
 int sys_getinfo(int request, void *val_ptr, int val_len, void *val_ptr2,
 	int val_len2);
 int sys_whoami(endpoint_t *ep, char *name, int namelen, int
-	*priv_flags);
+	*priv_flags, int* init_flags);
 
 /* Signal control. */
 int sys_kill(endpoint_t proc_ep, int sig);
@@ -257,6 +261,11 @@ int sys_setmcontext(endpoint_t proc, vir_bytes mcp);
 
 /* input */
 int tty_input_inject(int type, int code, int val);
+
+/* hypermem */
+int hypermem_printstr(const char *msg);
+int hypermem_release_pagetable(uint32_t physaddr);
+int hypermem_shutdown(void);
 
 /* Miscellaneous calls from servers and drivers. */
 pid_t srv_fork(uid_t reuid, gid_t regid);

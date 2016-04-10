@@ -300,6 +300,7 @@ static void test_getnameinfo(
 
 static struct
 {
+	int quicktest;
 	const char *nodename;
 	unsigned long ipaddr;
 	int numeric;
@@ -307,40 +308,43 @@ static struct
 	int need_network;
 	int exp_result;
 } hosts[] = {
-	{ NULL,             0x7f000001, 1, 1, 0, 0                 },
-	{ "0.0.0.0",        0x00000000, 1, 0, 0, 0                 },
-	{ "0.0.0.255",      0x000000ff, 1, 0, 0, 0                 },
-	{ "0.0.255.0",      0x0000ff00, 1, 0, 0, 0                 },
-	{ "0.255.0.0",      0x00ff0000, 1, 0, 0, 0                 },
-	{ "255.0.0.0",      0xff000000, 1, 0, 0, 0                 },
-	{ "127.0.0.1",      0x7f000001, 1, 0, 0, 0                 },
-	{ "localhost",      0x7f000001, 0, 1, 0, 0,                },
-	{ "test48.minix3.org", 0x7f010203, 0, 1, 1, 0,             },
-	{ "",               0x00000000, 1, 0, 0, (1<<EAI_NONAME)|(1<<EAI_FAIL)|(1<<EAI_NODATA)},
-	{ "256.256.256.256",0x00000000, 1, 0, 0, (1<<EAI_NONAME)|(1<<EAI_FAIL)|(1<<EAI_NODATA)},
-	{ "minix3.example.com",     0x00000000, 0, 0, 1, (1<<EAI_NONAME)|(1<<EAI_FAIL)|(1<<EAI_NODATA)}};
+	{ 1, NULL,                 0x7f000001, 1, 1, 0, 0                 },
+	{ 1, "0.0.0.0",            0x00000000, 1, 0, 0, 0                 },
+	{ 0, "0.0.0.255",          0x000000ff, 1, 0, 0, 0                 },
+	{ 0, "0.0.255.0",          0x0000ff00, 1, 0, 0, 0                 },
+	{ 0, "0.255.0.0",          0x00ff0000, 1, 0, 0, 0                 },
+	{ 0, "255.0.0.0",          0xff000000, 1, 0, 0, 0                 },
+	{ 1, "127.0.0.1",          0x7f000001, 1, 0, 0, 0                 },
+	{ 1, "localhost",          0x7f000001, 0, 1, 0, 0,                },
+	{ 1, "test48.minix3.org",  0x7f010203, 0, 1, 1, 0,                },
+	{ 1, "",                   0x00000000, 1, 0, 0, (1<<EAI_NONAME)|(1<<EAI_FAIL)|(1<<EAI_NODATA)},
+	{ 1, "256.256.256.256",    0x00000000, 1, 0, 0, (1<<EAI_NONAME)|(1<<EAI_FAIL)|(1<<EAI_NODATA)},
+	{ 1, "minix3.example.com", 0x00000000, 0, 0, 1, (1<<EAI_NONAME)|(1<<EAI_FAIL)|(1<<EAI_NODATA)},
+};
 
 static struct
 {
+	int quicktest;
 	const char *servname;
 	unsigned short port;
 	int numeric;
 	int socktype;
 	int exp_result;
 } services[] = {
-	{ NULL,        0, 1, 0,           0                  },
-	{ "0",         0, 1, 0,           0                  },
-	{ "1",         1, 1, 0,           0                  },
-	{ "32767", 32767, 1, 0,           0                  },
-	{ "32768", 32768, 1, 0,           0                  },
-	{ "65535", 65535, 1, 0,           0                  },
-	{ "echo",      7, 0, 0,           0                  },
-	{ "ftp",      21, 0, 0, 0                  },
-	{ "tftp",     69, 0, 0, 0                  },
-	{ "-1",        0, 1, 0,           (1<<EAI_NONAME) | (1<<EAI_SERVICE) },
-	{ "",          0, 1, 0,           (1<<EAI_NONAME) | (1<<EAI_SERVICE) },
-	{ "65537",     0, 1, 0,           (1 << EAI_SERVICE) },
-	{ "XXX",       0, 0, 0,           (1 << EAI_SERVICE) }};
+	{ 1, NULL,        0, 1, 0, 0                                  },
+	{ 1, "0",         0, 1, 0, 0                                  },
+	{ 0, "1",         1, 1, 0, 0                                  },
+	{ 0, "32767", 32767, 1, 0, 0                                  },
+	{ 0, "32768", 32768, 1, 0, 0                                  },
+	{ 0, "65535", 65535, 1, 0, 0                                  },
+	{ 1, "echo",      7, 0, 0, 0                                  },
+	{ 0, "ftp",      21, 0, 0, 0                                  },
+	{ 0, "tftp",     69, 0, 0, 0                                  },
+	{ 1, "-1",        0, 1, 0, (1<<EAI_NONAME) | (1<<EAI_SERVICE) },
+	{ 1, "",          0, 1, 0, (1<<EAI_NONAME) | (1<<EAI_SERVICE) },
+	{ 1, "65537",     0, 1, 0, (1 << EAI_SERVICE)                 },
+	{ 1, "XXX",       0, 0, 0, (1 << EAI_SERVICE)                 },
+};
 
 static struct 
 {
@@ -364,15 +368,17 @@ static struct
 
 #define LENGTH(a) (sizeof((a)) / sizeof((a)[0]))
 
-static void test_getaddrinfo_all(int use_network)
+static void test_getaddrinfo_all(int quicktest, int use_network)
 {
 	int flag_PASSIVE, flag_CANONNAME, flag_NUMERICHOST, flag_NUMERICSERV;
-	int exp_results, flags, i, j, k, l, passhints;
+	int exp_results, flags, flagcount, i, j, k, l, passhints;
 	unsigned long ipaddr;
 
 	/* loop through various parameter values */
 	for (i = 0; i < LENGTH(hosts);     i++)
+	if (hosts[i].quicktest || !quicktest)
 	for (j = 0; j < LENGTH(services);  j++)
+	if (services[j].quicktest || !quicktest)
 	for (k = 0; k < LENGTH(families);  k++)
 	for (l = 0; l < LENGTH(socktypes); l++)
 	for (flag_PASSIVE     = 0; flag_PASSIVE < 2;     flag_PASSIVE++)
@@ -381,6 +387,11 @@ static void test_getaddrinfo_all(int use_network)
 	for (flag_NUMERICSERV = 0; flag_NUMERICSERV < 2; flag_NUMERICSERV++)
 	for (passhints = 0; passhints < 2; passhints++)
 	{
+		/* skip some redundant combinations */
+		flagcount = flag_PASSIVE + flag_CANONNAME +
+			flag_NUMERICHOST + flag_NUMERICSERV;
+		if (quicktest && flagcount != 1) continue;
+
 		/* skip tests that need but cannot use network */
 		if (!use_network && hosts[i].need_network)
 			continue;
@@ -453,22 +464,24 @@ static void test_getaddrinfo_all(int use_network)
 
 static struct
 {
+	int quicktest;
 	const char *nodename;
 	const char *nodenum;
 	unsigned long ipaddr;
 	int havename;
 } ipaddrs[] = {
-	{ "0.0.0.0",    "0.0.0.0",      0x00000000, 0 },
-	{ "0.0.0.255",  "0.0.0.255",    0x000000ff, 0 },
-	{ "0.0.255.0",  "0.0.255.0",    0x0000ff00, 0 },
-	{ "0.255.0.0",  "0.255.0.0",    0x00ff0000, 0 },
-	{ "255.0.0.0",  "255.0.0.0",    0xff000000, 0 },
-	{ "localhost",  "127.0.0.1",    0x7f000001, 1 },
+	{ 1, "0.0.0.0",    "0.0.0.0",      0x00000000, 0 },
+	{ 0, "0.0.0.255",  "0.0.0.255",    0x000000ff, 0 },
+	{ 0, "0.0.255.0",  "0.0.255.0",    0x0000ff00, 0 },
+	{ 0, "0.255.0.0",  "0.255.0.0",    0x00ff0000, 0 },
+	{ 0, "255.0.0.0",  "255.0.0.0",    0xff000000, 0 },
+	{ 1, "localhost",  "127.0.0.1",    0x7f000001, 1 },
 	/* no reverse DNS unfortunately */
 	/* { "minix3.org", "130.37.20.20", 0x82251414, 1 } */};
 
 static struct
 {
+	int quicktest;
 	const char *servname;
 	const char *servnum;
 	unsigned short port;
@@ -476,21 +489,21 @@ static struct
 	struct servent *se_tcp; /* getservbyport() s_name on this port with "tcp" */
 	struct servent *se_udp; /* getservbyport() s_name on this port with "udp" */
 } ports[] = {
-	{ "0",      "0",         0, 0           },
-	{ "tcpmux", "1",         1, SOCK_STREAM },
-	{ "32767",  "32767", 32767, 0           },
-	{ "32768",  "32768", 32768, 0           },
-	{ "65535",  "65535", 65535, 0           },
-	{ "echo",   "7",         7, 0           },
-	{ "ftp",    "21",       21, SOCK_STREAM },
-	{ "tftp",   "69",       69, SOCK_DGRAM  }};
+	{ 1, "0",      "0",         0, 0           },
+	{ 1, "tcpmux", "1",         1, SOCK_STREAM },
+	{ 0, "32767",  "32767", 32767, 0           },
+	{ 0, "32768",  "32768", 32768, 0           },
+	{ 0, "65535",  "65535", 65535, 0           },
+	{ 1, "echo",   "7",         7, 0           },
+	{ 0, "ftp",    "21",       21, SOCK_STREAM },
+	{ 0, "tftp",   "69",       69, SOCK_DGRAM  }};
 
 static int buflens[] = { 0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 255 };
 
-static void test_getnameinfo_all(void)
+static void test_getnameinfo_all(int quicktest)
 {
 	int flag_NUMERICHOST, flag_NAMEREQD, flag_NUMERICSERV, flag_DGRAM;
-	int exp_results, flags, i, j, k, l, socktypemismatch;
+	int exp_results, flagcount, flags, i, j, k, l, socktypemismatch;
 	const char *nodename, *servname;
 
 	/* set ports servent structs */
@@ -522,7 +535,9 @@ static void test_getnameinfo_all(void)
 
 	/* loop through various parameter values */
 	for (i = 0; i < LENGTH(ipaddrs); i++)
+	if (ipaddrs[i].quicktest || quicktest)
 	for (j = 0; j < LENGTH(ports);   j++)
+	if (ports[j].quicktest || quicktest)
 	for (k = 0; k < LENGTH(buflens); k++)
 	for (l = 0; l < LENGTH(buflens); l++)
 	for (flag_NUMERICHOST = 0; flag_NUMERICHOST < 2; flag_NUMERICHOST++)
@@ -530,6 +545,13 @@ static void test_getnameinfo_all(void)
 	for (flag_NUMERICSERV = 0; flag_NUMERICSERV < 2; flag_NUMERICSERV++)
 	for (flag_DGRAM       = 0; flag_DGRAM < 2;       flag_DGRAM++)
 	{
+		/* skip some redundant combinations */
+		flagcount = flag_NUMERICHOST + flag_NAMEREQD +
+			flag_NUMERICSERV + flag_DGRAM;
+		if (quicktest && flagcount != 1) continue;
+		if (quicktest && k > 1 && k < LENGTH(buflens) - 2) continue;
+		if (quicktest && l > 1 && l < LENGTH(buflens) - 2) continue;
+
 		/* determine flags */
 		flags = (flag_NUMERICHOST ? NI_NUMERICHOST : 0) |
 			(flag_NAMEREQD    ? NI_NAMEREQD : 0) |
@@ -575,31 +597,16 @@ static void test_getnameinfo_all(void)
 	}
 }
 
-static int can_use_network(void)
-{
-	const char *usenet;
-
-	/* set $USENETWORK to "yes" or "no" to indicate whether
-	 * an internet connection is to be expected; defaults to "no"
-	 */
-	usenet = getenv("USENETWORK");
-	if (!usenet || !*usenet) return 0; /* default: disable network */
-	if (strcmp(usenet, "yes") == 0) return 1; /* network enabled */
-	if (strcmp(usenet, "no") == 0) return 0; /* network disabled */
-
-	fprintf(stderr, "warning: invalid $USENETWORK value: %s\n", usenet);
-	return 0;
-}
-
 int main(void)
 {
-	int use_network;
+	int quicktest, use_network;
 
 	start(48);
 
-	use_network = can_use_network();
-	test_getaddrinfo_all(use_network);
-	test_getnameinfo_all();
+	use_network = get_setting_use_network();
+	quicktest = get_setting_quick_test();
+	test_getaddrinfo_all(quicktest, use_network);
+	test_getnameinfo_all(quicktest);
 
 	quit();
 	return 0;

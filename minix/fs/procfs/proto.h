@@ -10,6 +10,9 @@ ssize_t buf_result(void);
 /* cpuinfo.c */
 void root_cpuinfo(void);
 
+/* hypermem.c */
+void root_hypermem(void);
+
 /* service.c */
 void service_init(void);
 void service_lookup(struct inode *parent, clock_t now);

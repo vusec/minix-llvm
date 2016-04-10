@@ -22,6 +22,14 @@ static void reply(endpoint_t whom, message *m_ptr);
 /* SEF functions and variables. */
 static void sef_local_startup(void);
 
+static void sef_cb_signal_handler(int signo)
+{
+	printf("DS: signal\n");
+      SEF_SIGNAL_HANDLE_DEFAULT(signo);
+      return;
+}
+
+
 /*===========================================================================*
  *				main                                         *
  *===========================================================================*/
@@ -94,9 +102,11 @@ static void sef_local_startup()
 {
   /* Register init callbacks. */
   sef_setcb_init_fresh(sef_cb_init_fresh);
-  sef_setcb_init_restart(sef_cb_init_fail);
+  sef_setcb_init_restart(SEF_CB_INIT_RESTART_STATEFUL);
+  sef_setcb_signal_handler(sef_cb_signal_handler);
 
-  /* No live update support for now. */
+  /* Register state transfer callbacks. */
+  sef_llvm_ds_st_init();
 
   /* Let SEF perform startup. */
   sef_startup();

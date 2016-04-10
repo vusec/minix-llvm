@@ -18,6 +18,7 @@ set -e
 : ${BUILDSH=build.sh}
 : ${CREATE_IMAGE_ONLY=0}
 : ${RC=minix_x86.rc}
+: ${CONF=minix_x86.conf}
 
 #
 # Directory where to store temporary file system images
@@ -30,9 +31,9 @@ set -e
 # we create a disk image of about 2 gig's
 # for alignment reasons, prefer sizes which are multiples of 4096 bytes
 #
-: ${ROOT_SIZE=$((   64*(2**20) / 512))}
+: ${ROOT_SIZE=$((  256*(2**20) / 512))}
 : ${HOME_SIZE=$((  128*(2**20) / 512))}
-: ${USR_SIZE=$((  1792*(2**20) / 512))}
+: ${USR_SIZE=$((  2047*(2**20) / 512))}
 
 #
 # Do some math to determine the start addresses of the partitions.
@@ -106,7 +107,8 @@ then
 	# Now start the build.
 	#
 	sh ${BUILDSH} -j ${JOBS} -m ${ARCH} -O ${OBJ} -D ${DESTDIR} ${BUILDVARS} -U -u distribution
-
+else
+	${CROSS_TOOLS}/nbmake-i386 -C releasetools do-hdboot
 fi
 
 #
@@ -141,12 +143,32 @@ cat ${DESTDIR}/METALOG.sanitised | ${CROSS_TOOLS}/nbmtree -N ${DESTDIR}/etc -C -
 
 # add rc (if any)
 if [ -f ${RC} ]; then
-    cp ${RC} ${DESTDIR}/usr/etc/rc.local
-    echo "./usr/etc/rc.local type=file uid=0 gid=0 mode=0644" >> ${IMG_DIR}/input
+    mkdir -p ${DESTDIR}/usr/local/etc
+    cp ${RC} ${DESTDIR}/usr/local/etc/rc
+    echo "./usr/local type=dir uid=0 gid=0 mode=0755" >> ${IMG_DIR}/input
+    echo "./usr/local/etc type=dir uid=0 gid=0 mode=0755" >> ${IMG_DIR}/input
+    echo "./usr/local/etc/rc type=file uid=0 gid=0 mode=0644" >> ${IMG_DIR}/input
+fi
+
+# add configuration-related files (if needed)
+if [ -f ${CONF} ]; then
+    . ${CONF}
+    echo "eth0 $GUEST_NIC 0 { default; } ;" > ${DESTDIR}/etc/inet.conf
+    echo -e "default login $HOST_FTP_USER password $HOST_FTP_PASS macdef port $HOST_FTP_PORT \n" > ${DESTDIR}/root/.netrc
+    echo "$HOST_IP_ADDR host" > ${DESTDIR}/etc/hosts
+    echo "./etc/inet.conf type=file uid=0 gid=0 mode=0644" >> ${IMG_DIR}/input
+    echo "./root/.netrc type=file uid=0 gid=0 mode=0600" >> ${IMG_DIR}/input
+    echo "./etc/hosts type=file uid=0 gid=0 mode=0644" >> ${IMG_DIR}/input
 fi
 
 # add fstab
 echo "./etc/fstab type=file uid=0 gid=0 mode=0755 size=747 time=1365060731.000000000" >> ${IMG_DIR}/input
+
+# initialize /dev/random seed
+if [ -c /dev/random ]; then
+    dd if=/dev/random of=${DESTDIR}/usr/adm/random.dat bs=1024 count=1
+    echo "./usr/adm/random.dat type=file uid=0 gid=0 mode=0600" >> ${IMG_DIR}/input
+fi
 
 # fill root.img (skipping /usr entries while keeping the /usr directory)
 cat ${IMG_DIR}/input  | grep -v "^./usr/" | ${CROSS_TOOLS}/nbtoproto -b ${DESTDIR} -o ${IMG_DIR}/root.proto
@@ -185,6 +207,13 @@ HOME_START=$((${USR_START} + ${_USR_SIZE}))
 echo " - HOME"
 _HOME_SIZE=$((`${CROSS_TOOLS}/nbmkfs.mfs -d ${HOMESIZEARG} -I $((${HOME_START}*512)) ${IMG} ${IMG_DIR}/home.proto`/512))
 
+
+#
+# Cleanup
+#
+rm -f ${DESTDIR}/root/.netrc ${DESTDIR}/etc/hosts
+rm -rf ${DESTDIR}/usr/local
+
 #
 # Write the partition table using the natively compiled
 # minix partition utility
@@ -198,5 +227,5 @@ then
 	echo "CD image at `pwd`/${IMG}"
 else
 	echo "To boot this image on kvm:"
-	echo "cd ${MODDIR} && qemu-system-i386 -display none -serial stdio -kernel kernel -append \"console=tty00 rootdevname=c0d0p1\" -initrd \"${mods}\" -hda `pwd`/${IMG} --enable-kvm"
+	echo "cd ${MODDIR} && qemu-system-i386 --enable-kvm -m 256 -kernel kernel -append \"rootdevname=c0d0p1\" -initrd \"${mods}\" -hda `pwd`/${IMG}"
 fi

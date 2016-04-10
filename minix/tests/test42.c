@@ -11,7 +11,8 @@
 #include <sys/ptrace.h>
 #include <sys/syslimits.h>
 
-#define ITERATIONS 3
+#define ITERATIONS_FULL  3
+#define ITERATIONS_QUICK 1
 int max_error = 4;
 #include "common.h"
 
@@ -102,7 +103,7 @@ char **argv;
   if (argc >= 2) m = atoi(argv[1]);
   if (argc >= 3) n = atoi(argv[2]);
 
-  for (i = 0; i < ITERATIONS; i++) {
+  for (i = 0; i < ITERATIONS_ADAPTIVE; i++) {
 	if (n & 001) test(m, 0);
 	if (n & 002) test(m, 1);
 	if (n & 004) test(m, 2);

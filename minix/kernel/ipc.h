@@ -11,9 +11,15 @@
 #define NON_BLOCKING    0x0080  /* do not block if target not ready */
 #define FROM_KERNEL     0x0100  /* message from kernel on behalf of a process */
 
-#define WILLRECEIVE(target, source_ep) \
-  ((RTS_ISSET(target, RTS_RECEIVING) && !RTS_ISSET(target, RTS_SENDING)) &&	\
-    (target->p_getfrom_e == ANY || target->p_getfrom_e == source_ep))
+#define WILLRECEIVE(src_e,dst_ptr,m_src_ptr,m_ptr_ptr) \
+  ((RTS_ISSET(dst_ptr, RTS_RECEIVING) && !RTS_ISSET(dst_ptr, RTS_SENDING)) &&	\
+    CANRECEIVE(dst_ptr->p_getfrom_e,src_e,dst_ptr,m_src_ptr,m_ptr_ptr))
+
+#define CANRECEIVE(receive_e,src_e,dst_ptr,m_src_ptr,m_ptr_ptr) \
+  (((receive_e) == ANY && CANRECEIVE_ANY(src_e,dst_ptr,m_src_ptr,m_ptr_ptr)) \
+    || (receive_e) == (src_e))
+#define CANRECEIVE_ANY(src_e,dst_ptr,m_src_ptr,m_ptr_ptr) \
+  (!priv(dst_ptr)->s_ipcf || allow_ipc_filtered_msg(dst_ptr,src_e,m_src_ptr,m_ptr_ptr))
 
 /* IPC status code macros. */
 #define IPC_STATUS_GET(p)	((p)->p_reg.IPC_STATUS_REG)
@@ -36,8 +42,15 @@
             (p)->p_reg.IPC_STATUS_REG |= (m); \
         } \
     } while(0)
+#ifndef _MINIX_DISTRIBUTED_RECOVERY
 #define IPC_STATUS_ADD_CALL(p, call) \
     IPC_STATUS_ADD(p, IPC_STATUS_CALL_TO(call))
+#else
+#define IPC_STATUS_ADD_CALL(src, dst, call, isnoreply) do { \
+    IPC_STATUS_ADD(dst, IPC_STATUS_CALL_TO(call)); \
+	ipc_status_add_call_hook(src, dst, call, isnoreply); \
+	} while(0)
+#endif
 #define IPC_STATUS_ADD_FLAGS(p, flags) \
     IPC_STATUS_ADD(p, IPC_STATUS_FLAGS(flags))
 

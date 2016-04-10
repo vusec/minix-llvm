@@ -30,6 +30,7 @@ static int cache_unreference(struct phys_region *pr);
 static int cache_sanitycheck(struct phys_region *pr, const char *file, int line);
 static int cache_writable(struct phys_region *pr);
 static int cache_resize(struct vmproc *vmp, struct vir_region *vr, vir_bytes l);
+static int cache_lowshrink(struct vir_region *vr, vir_bytes len);
 static int cache_pagefault(struct vmproc *vmp, struct vir_region *region, 
         struct phys_region *ph, int write, vfs_callback_t cb, void *state,
 	int len, int *io);
@@ -40,6 +41,7 @@ struct mem_type mem_type_cache = {
 	.ev_reference = cache_reference,
 	.ev_unreference = cache_unreference,
 	.ev_resize = cache_resize,
+	.ev_lowshrink = cache_lowshrink,
 	.ev_sanitycheck = cache_sanitycheck,
 	.ev_pagefault = cache_pagefault,
 	.writable = cache_writable,
@@ -84,6 +86,11 @@ static int cache_resize(struct vmproc *vmp, struct vir_region *vr, vir_bytes l)
 	return ENOMEM;
 }
 
+static int cache_lowshrink(struct vir_region *vr, vir_bytes len)
+{
+        return OK;
+}
+
 int
 do_mapcache(message *msg)
 {
@@ -107,11 +114,15 @@ do_mapcache(message *msg)
 
 	if(bytes < VM_PAGE_SIZE) return EINVAL;
 
-	if(!(vr = map_page_region(caller, VM_PAGE_SIZE, VM_DATATOP, bytes,
+	/* Make sure there is a 1-page hole available before the region,
+	 * in case clients need to allocate in-band metadata later.
+	 */
+	if(!(vr=map_page_region(caller, VM_PAGE_SIZE, VM_DATATOP, bytes+VM_PAGE_SIZE,
 		VR_ANON | VR_WRITABLE, 0, &mem_type_cache))) {
 		printf("VM: map_page_region failed\n");
 		return ENOMEM;
 	}
+	map_unmap_region(caller, vr, 0, VM_PAGE_SIZE);
 
 	assert(vr->length == bytes);
 

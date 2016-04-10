@@ -6,7 +6,7 @@
 /*===========================================================================*
  *				mthread_debug_f				     *
  *===========================================================================*/
-#ifdef MDEBUG
+#ifndef MTHREADSILENT
 void mthread_debug_f(const char *file, int line, const char *msg)
 {
   /* Print debug message */
@@ -17,7 +17,7 @@ void mthread_debug_f(const char *file, int line, const char *msg)
 /*===========================================================================*
  *				mthread_panic_f				     *
  *===========================================================================*/
-#ifdef MDEBUG
+#ifndef MTHREADSILENT
 void mthread_panic_f(const char *file, int line, const char *msg)
 {
   /* Print panic message to stdout and exit */
@@ -28,7 +28,9 @@ void mthread_panic_f(const char *file, int line, const char *msg)
   printf("mthread panic (%s:%d): ", file, line);
   printf("%s", msg);
   printf("\n");
+#if 0
   fflush(stdout);	/* Force debug print to screen */
+#endif
   *((int *) sf ) = 1;	/* Cause segfault to generate trace */
   exit(1);
 }

@@ -1,7 +1,7 @@
-/* Header file for the system service manager server. 
+/* Header file for the system service manager server.
  *
  * Created:
- *    Jul 22, 2005	by Jorrit N. Herder 
+ *    Jul 22, 2005	by Jorrit N. Herder
  */
 
 #define _SYSTEM		1    /* get OK and negative error codes */
@@ -53,4 +53,6 @@
 #include "type.h"
 #include "glo.h"
 
-EXTERN int do_sef_lu_request(message *m_ptr);
+int do_sef_lu_request(message *m_ptr);
+int hypermem_notify_stop(const char *str, int signo);
+

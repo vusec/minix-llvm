@@ -31,6 +31,7 @@ struct file root_files[] = {
 	{ "dmap",	REG_ALL_MODE,	(data_t) root_dmap	},
 #if defined(__i386__)
 	{ "cpuinfo",	REG_ALL_MODE,	(data_t) root_cpuinfo	},
+	{ "hypermem",	REG_ALL_MODE,	(data_t) root_hypermem	},
 #endif
 	{ "ipcvecs",	REG_ALL_MODE,	(data_t) root_ipcvecs	},
 	{ "mounts",	REG_ALL_MODE,	(data_t) root_mounts	},
