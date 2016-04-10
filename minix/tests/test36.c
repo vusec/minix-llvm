@@ -82,7 +82,7 @@ void test36a()
 # if _POSIX_CHOWN_RESTRICTED - 0 == -1
   if (not_provided_option(_PC_CHOWN_RESTRICTED) != 0) e(1);
 # else
-  if (provided_option(_PC_CHOWN_RESTRICTED, 0) != 0) e(2);
+  if (provided_option(_PC_CHOWN_RESTRICTED, 0) != 0) me(2);
 # endif
 #else
   if (variating_option(_PC_CHOWN_RESTRICTED, 0) != 0) e(3);
@@ -137,7 +137,9 @@ int option;
   char **p;
 
   for (p = testfiles; *p != (char *) NULL; p++) {
-	if (pathconf(*p, option) != -1) return printf("*p == %s\n", *p), 1;
+	if (pathconf(*p, option) != -1)
+		return printf("*p == %s\n", *p), 1;
+
   }
   return 0;
 }
@@ -156,8 +158,12 @@ int option, minimum;
 	p = testfiles;
 
   for (; *p != NULL; p++) {
-	if (pathconf(*p, option) < minimum)
-		return printf("*p == %s\n", *p), 1;
+	if (pathconf(*p, option) < minimum) {
+#ifdef __minix
+		printf("*p == %s\n", *p);
+#endif
+		return 1;
+	}
   }
   return 0;
 }

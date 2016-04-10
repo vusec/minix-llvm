@@ -147,11 +147,11 @@ void test27a()
   if (st1.st_gid != getegid()) e(49);
 #endif /* defined(NGROUPS_MAX) && NGROUPS_MAX == 0 */
   if (st1.st_size != (size_t) 0) e(50);
-  if (st1.st_atime <= time1) e(51);
+  if (st1.st_atime <= time1) me(51);
   if (st1.st_atime >= time2) e(52);
-  if (st1.st_ctime <= time1) e(53);
+  if (st1.st_ctime <= time1) me(53);
   if (st1.st_ctime >= time2) e(54);
-  if (st1.st_mtime <= time1) e(55);
+  if (st1.st_mtime <= time1) me(55);
   if (st1.st_mtime >= time2) e(56);
 
   /* Note: the st_mode of a fstat on a pipe should contain a isfifo bit. */
@@ -169,11 +169,11 @@ void test27a()
   if (st1.st_uid != geteuid()) e(60);
   if (st1.st_gid != getegid()) e(61);
   if (st1.st_size != (size_t) 0) e(62);
-  if (st1.st_atime <= time1) e(63);
+  if (st1.st_atime <= time1) me(63);
   if (st1.st_atime >= time2) e(64);
-  if (st1.st_ctime <= time1) e(65);
+  if (st1.st_ctime <= time1) me(65);
   if (st1.st_ctime >= time2) e(66);
-  if (st1.st_mtime <= time1) e(67);
+  if (st1.st_mtime <= time1) me(67);
   if (st1.st_mtime >= time2) e(68);
   if (fstat(pfd[1], &st1) != 0) e(69);	/* get pipe output info */
   if (!(S_ISFIFO(st1.st_mode))) e(70);

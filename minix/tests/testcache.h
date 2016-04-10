@@ -4,8 +4,17 @@
  */
 
 #include <sys/types.h>
+#ifdef __minix
 #include <machine/param.h>
 #include <machine/vmparam.h>
+#endif
+
+#ifdef __linux
+#include <stdint.h>
+#include <sys/user.h>
+typedef uint32_t u32_t;
+typedef uint64_t u64_t;
+#endif
 
 #define MAXBLOCKS 1500000
 

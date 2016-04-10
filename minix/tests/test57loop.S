@@ -1,4 +1,12 @@
+#ifdef __minix
 #include <machine/asm.h>
+#endif
+
+#ifdef __linux
+#define IMPORT(x) .extern x
+#define ENTRY(x) .text; .align 16; .globl x; .type x,@function; x:
+#define _C_LABEL(x) x
+#endif
 
 IMPORT(remaining_invocations)
 IMPORT(origstate)

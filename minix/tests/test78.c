@@ -120,8 +120,10 @@ main(int argc, char **argv)
 
 		if(de->d_type != dt) { e(37); }
 		if(de->d_fileno != sb.st_ino) { e(38); }
+#ifdef __minix
 		if(de->d_namlen != strlen(de->d_name)) { e(39); }
 		if(de->d_reclen != _DIRENT_RECLEN(de, de->d_namlen)) { e(40); }
+#endif
 	}
 
 	if(closedir(dir) < 0) e(50);

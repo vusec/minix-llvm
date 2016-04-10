@@ -176,6 +176,7 @@ void test29b()
 
 void test29c()
 {
+  int fd;
   int i;
 
   subtest = 3;
@@ -192,14 +193,16 @@ void test29c()
 
 	/* ``i'' Is OPEN_MAX. */
 	if (i == OPEN_MAX) {
-		if (dup2(0, i) != -1) e(3);
-		if (errno != EINVAL) e(4);
+		fd = dup2(0, i);
+		if (fd != -1) { me(3); close(fd); }
+		if (errno != EINVAL) me(4);
 	}
 
 	/* ``i'' Is out of range. */
 	if (i < 0 || i > OPEN_MAX) {
-		if (dup2(0, i) != -1) e(5);
-		if (errno != EBADF) e(6);
+		fd = dup2(0, i);
+		if (fd != -1) { me(5); close(fd); }
+		if (errno != EBADF) me(6);
 	}
   }
 

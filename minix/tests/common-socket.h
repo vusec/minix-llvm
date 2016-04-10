@@ -7,6 +7,12 @@
 void test_fail_fl(char *msg, char *file, int line);
 #define test_fail(msg)	test_fail_fl(msg, __FILE__, __LINE__)
 
+#ifdef __minix
+#define test_fail_m(x) test_fail(x)
+#else
+#define test_fail_m(x)
+#endif
+
 #if DEBUG == 1
 /* macros to display debugging information */
 void debug_fl(char *msg, char *file, int line);
@@ -99,6 +105,13 @@ struct socket_test_info {
 	void (* callback_xfer_peercred)(int sd); /* can be NULL */
 	void (* callback_xfer_prepclient)(void); /* can be NULL */
 };
+
+int bind_reuse(int socket, const struct sockaddr *address, socklen_t address_len);
+
+void sigpipe_check(void);
+void sigpipe_expect_start(void);
+void sigpipe_expect_stop(void);
+void common_socket_init(void);
 
 void test_abort_client_server(const struct socket_test_info *info,
 	int abort_type);

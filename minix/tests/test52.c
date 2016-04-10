@@ -78,7 +78,12 @@ void dead_child(int n)
 
   (void) n; /* Avoid warning about unused parameter */
 
-  if (wait(&status) == -1) err(1);
+  if (wait(&status) == -1) {
+#ifdef __linux
+	return; /* system called from start() causes spurious SIGCHLD */
+#endif
+	err(1);
+  }
 
   if (!WIFEXITED(status)) {
 	err(2);

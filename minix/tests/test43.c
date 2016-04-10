@@ -105,7 +105,9 @@ static void check_realpath(const char *path, int expected_errno)
 	/* do we get success when expected? */
 	if (!resolved_path)
 	{
+#ifdef __minix
 		ERR;
+#endif
 		return;
 	}
 	errno = 0;
@@ -203,7 +205,11 @@ static void check_realpath_recurse(const char *path, int depth)
 	 * might not get expected results and takes way too long */
 	if (stat(path, &st) != 0) {
 		/* dangling symlinks may cause legitimate failures here */
-		if (lstat(path, &st) != 0) ERR;
+		if (lstat(path, &st) != 0) {
+#ifdef __minix
+			ERR;
+#endif
+		}
 		return;
 	}
 	if (!S_ISDIR(st.st_mode))
@@ -295,8 +301,12 @@ static void test_dirname(const char *path, const char *exp)
 	
 		/* perform test */
 		pathout = dirname(buffer);
-		if (strcmp(pathout, exp) != 0)
+		if (strcmp(pathout, exp) != 0) {
+#ifdef __linux
+			if (strcmp(pathout, "//") != 0 || strcmp(exp, "/") != 0)
+#endif
 			ERR;
+		}
 	}
 }
 

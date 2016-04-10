@@ -228,6 +228,7 @@ static int sigmemcmp(sigset_t *s1, sigset_t *s2, int size)
 	int i;
 	int mismatch = 0;
 	assert(size == sizeof(sigset_t));
+#ifdef __minix
 	for(i = 1; i < _NSIG; i++) {
 		if(sigismember(s1, i) && !sigismember(s2, i)) {
 			fprintf(stderr, "sig %d set in first but not in 2nd\n", i);
@@ -238,6 +239,7 @@ static int sigmemcmp(sigset_t *s1, sigset_t *s2, int size)
 			mismatch = 1;
 		}
 	}
+#endif
 
 	return mismatch;
 }
@@ -950,7 +952,11 @@ struct sigcontext *scp;
 
   if (setjmp(jb)) {
 	x++;
+#ifdef __minix
 	sigreturn(scp);
+#else
+	return;
+#endif
 	e(1);
   }
   y++;

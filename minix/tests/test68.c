@@ -1,6 +1,5 @@
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/syslimits.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -207,20 +206,20 @@ test_pipe_nonblock()
 	 * return -1 and not transfer any data.
 	 */
 	if (write(pipes[1], buf_out, 1) != 1) e(5);	/* Write 1 byte */
-	if (write(pipes[1], buf_out, pipe_size) != -1) e(6);	/* Can't fit */
-	if (errno != EAGAIN) e(7);
+	if (write(pipes[1], buf_out, pipe_size) != -1) me(6);	/* Can't fit */
+	if (errno != EAGAIN) me(7);
 
 	/* When writing more than PIPE_BUF bytes and when at least 1 byte can
 	 * be tranferred, return the number of bytes written. We've written 1
 	 * byte, so there are PIPE_BUF - 1 bytes left. */
-	if (write(pipes[1], buf_out, pipe_size + 1) != pipe_size - 1) e(8);
+	if (write(pipes[1], buf_out, pipe_size + 1) != pipe_size - 1) me(8);
 
 	/* Read out all data and try again. This time we should be able to
 	 * write PIPE_BUF bytes. */
-	if (read(pipes[0], buf_in, pipe_size) != pipe_size) e(9);
-	if (read(pipes[0], buf_in, 1) != -1) e(10);	/* Empty, can't read */
-	if (errno != EAGAIN) e(11);
-	if (write(pipes[1], buf_out, pipe_size + 1) != pipe_size) e(12);
+	if (read(pipes[0], buf_in, pipe_size) != pipe_size) me(9);
+	if (read(pipes[0], buf_in, 1) != -1) me(10);	/* Empty, can't read */
+	if (errno != EAGAIN) me(11);
+	if (write(pipes[1], buf_out, pipe_size + 1) != pipe_size) me(12);
 	if (close(pipes[0]) != 0) e(13);
 	if (close(pipes[1]) != 0) e(14);
 	free(buf_in);
@@ -237,7 +236,11 @@ test_pipe_nosigpipe(void)
 
 	subtest = 5;
 
+#ifdef __minix
 	if (pipe2(pipes, O_NOSIGPIPE) != 0) e(7);
+#else
+	if (pipe2(pipes, 0) != 0) e(7);
+#endif
 	signal(SIGPIPE, pipe_handler);
 	signal(SIGALRM, alarm_handler);
 	seen_pipe_signal = 0;
@@ -250,7 +253,9 @@ test_pipe_nosigpipe(void)
 	while (seen_alarm_signal == 0)
 		;
 	if (errno != EPIPE) e(10);
+#ifdef __minix
 	if (seen_pipe_signal != -1) e(11); /* Alarm sig handler set it to -1 */
+#endif
 	if (close(pipes[1]) != 0) e(12);
 }
 
@@ -267,23 +272,31 @@ test_pipe_flag_setting()
 	if (fcntl(pipes[1], F_GETFD) != 0) e(3);
 	if (fcntl(pipes[0], F_GETFL) & O_NONBLOCK) e(4);
 	if (fcntl(pipes[1], F_GETFL) & O_NONBLOCK) e(5);
+#ifdef __minix
 	if (fcntl(pipes[0], F_GETNOSIGPIPE) != 0) e(6);
 	if (fcntl(pipes[1], F_GETNOSIGPIPE) != 0) e(7);
+#endif
 	if (close(pipes[0]) != 0) e(8);
 	if (close(pipes[1]) != 0) e(9);
 
 	/* Create pipe with all flags and verify they're on */
+#ifdef __minix
 	if (pipe2(pipes, O_CLOEXEC|O_NONBLOCK|O_NOSIGPIPE) != 0) e(10);
+#else
+	if (pipe2(pipes, O_CLOEXEC|O_NONBLOCK) != 0) e(10);
+#endif
 	if (fcntl(pipes[0], F_GETFD) != FD_CLOEXEC) e(11);
 	if (fcntl(pipes[1], F_GETFD) != FD_CLOEXEC) e(12);
 	if (!(fcntl(pipes[0], F_GETFL) & O_NONBLOCK)) e(13);
 	if (!(fcntl(pipes[1], F_GETFL) & O_NONBLOCK)) e(14);
+#ifdef __minix
 	if (fcntl(pipes[0], F_GETNOSIGPIPE) == 0) e(15);
 	if (fcntl(pipes[1], F_GETNOSIGPIPE) == 0) e(16);
 	if (fcntl(pipes[0], F_SETNOSIGPIPE, 0) != 0) e(17);
 	if (fcntl(pipes[0], F_GETNOSIGPIPE) != 0) e(18);
 	if (fcntl(pipes[0], F_SETNOSIGPIPE, 1) != 0) e(19);
 	if (fcntl(pipes[0], F_GETNOSIGPIPE) == 0) e(20);
+#endif
 	if (close(pipes[0]) != 0) e(21);
 	if (close(pipes[1]) != 0) e(22);
 }
@@ -337,16 +350,16 @@ test_pipe_partial_write(void)
 	 * that is when the read end closes, thus making eventual completion of
 	 * the write impossible.
 	 */
-	if (write(pfd[1], buf, sizeof(buf)) != -1) e(4);
-	if (errno != EPIPE) e(5);
-	if (seen_pipe_signal != 1) e(6);
+	if (write(pfd[1], buf, sizeof(buf)) != -1) me(4);
+	if (errno != EPIPE) me(5);
+	if (seen_pipe_signal != 1) me(6);
 
 	seen_pipe_signal = 0;
 
 	/* A subsequent write used to cause a system crash. */
-	if (write(pfd[1], buf, 1) != -1) e(7);
-	if (errno != EPIPE) e(8);
-	if (seen_pipe_signal != 1) e(9);
+	if (write(pfd[1], buf, 1) != -1) me(7);
+	if (errno != EPIPE) me(8);
+	if (seen_pipe_signal != 1) me(9);
 
 	/* Clean up. */
 	close(pfd[1]);

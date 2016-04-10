@@ -13,12 +13,26 @@
 #include <signal.h>
 #include <termios.h>
 #include <sys/wait.h>
-#include <sys/syslimits.h>
 #include <paths.h>
 #include <dirent.h>
 #include <grp.h>
 #include <fcntl.h>
+#ifdef __minix
 #include <util.h>
+#endif
+
+#ifdef __linux
+#include <sys/stat.h>
+#define	_PATH_DEV_PTS "/dev/pts/"
+
+static size_t strlcpy(char *dst, const char *src, size_t size) {
+	size_t srclen = strlen(src);
+	if (size > srclen + 1) size = srclen + 1;
+	if (size > 1) memcpy(dst, src, size - 1);
+	if (size > 0) dst[size - 1] = 0;
+	return srclen;
+}
+#endif
 
 #define ITERATIONS_FULL  10
 #define ITERATIONS_QUICK  1
@@ -69,22 +83,22 @@ test_comm(int masterfd, int slavefd)
 	c = 'A';
 	if (write(masterfd, &c, sizeof(c)) != sizeof(c)) e(0);
 	if (read(slavefd, &c, sizeof(c)) != sizeof(c)) e(0);
-	if (c != 'A') e(0);
+	if (c != 'A') me(0);
 
 	c = 'B';
 	if (write(slavefd, &c, sizeof(c)) != sizeof(c)) e(0);
 	if (read(masterfd, &c, sizeof(c)) != sizeof(c)) e(0);
-	if (c != 'B') e(0);
+	if (c != 'B') me(0);
 
 	c = 'C';
 	if (write(masterfd, &c, sizeof(c)) != sizeof(c)) e(0);
 	if (read(slavefd, &c, sizeof(c)) != sizeof(c)) e(0);
-	if (c != 'C') e(0);
+	if (c != 'C') me(0);
 
 	c = 'D';
 	if (write(slavefd, &c, sizeof(c)) != sizeof(c)) e(0);
 	if (read(masterfd, &c, sizeof(c)) != sizeof(c)) e(0);
-	if (c != 'D') e(0);
+	if (c != 'D') me(0);
 }
 
 /*
@@ -359,8 +373,8 @@ test77c(void)
 	if (close(slavefd) < 0) e(0);
 
 	/* Writes to the master after the slave has been closed should fail. */
-	if (write(masterfd, &c, sizeof(c)) >= 0) e(0);
-	if (errno != EIO) e(0);
+	if (write(masterfd, &c, sizeof(c)) >= 0) me(0);
+	if (errno != EIO) me(0);
 
 	if (oldstyle)
 		if (close(masterfd) < 0) e(0);
@@ -667,7 +681,7 @@ test77f(void)
 		if (select(fd + 1, &fd_set, NULL, NULL, NULL) != 1) e(0);
 		if (!FD_ISSET(fd, &fd_set)) e(0);
 
-		if (read(slavefd, &c, sizeof(c)) != 0) e(0);
+		if (read(slavefd, &c, sizeof(c)) != 0) me(0);
 
 		exit(errct);
 	case -1:
@@ -757,7 +771,7 @@ test_getdents(int nindex, int array[3], int present[3])
 			errno = 0;
 			n = strtol(dp->d_name, &endp, 10);
 			if (errno != 0) e(0);
-			if (dp->d_name[0] == '\0' || *endp != '\0') e(0);
+			if (dp->d_name[0] == '\0' || *endp != '\0') me(0);
 			if (n < 0) e(0);
 
 			/* Check basic dirent and stat fields. */
@@ -771,7 +785,7 @@ test_getdents(int nindex, int array[3], int present[3])
 			/* Is this one of the PTYs we created? */
 			for (i = 0; i < nindex; i++) {
 				if (array[i] == n) {
-					if (seen_index[i]) e(0);
+					if (seen_index[i]) me(0);
 					seen_index[i] = 1;
 
 					break;
@@ -780,9 +794,9 @@ test_getdents(int nindex, int array[3], int present[3])
 
 			/* If so, perform some extra tests. */
 			if (i < nindex) {
-				if ((buf.st_mode & ALLPERMS) != 0620) e(0);
-				if (buf.st_uid != getuid()) e(0);
-				if (buf.st_gid != tty_gid) e(0);
+				if ((buf.st_mode & ALLPERMS) != 0620) me(0);
+				if (buf.st_uid != getuid()) me(0);
+				if (buf.st_gid != tty_gid) me(0);
 			}
 		}
 	}
@@ -792,7 +806,7 @@ test_getdents(int nindex, int array[3], int present[3])
 	if (!seen_dot) e(0);
 	if (!seen_dotdot) e(0);
 	for (i = 0; i < nindex; i++)
-		if (seen_index[i] != present[i]) e(0);
+		if (seen_index[i] != present[i]) me(0);
 }
 
 /*
@@ -855,7 +869,7 @@ test77g(void)
 				if (close(slavefd) < 0) e(0);
 		}
 
-		if (access(tname, R_OK | W_OK) < 0) e(0);
+		if (access(tname, R_OK | W_OK) < 0) me(0);
 
 		if (close(masterfd) < 0) e(0);
 
@@ -1010,7 +1024,7 @@ test77h(void)
 		len = strlen(_PATH_DEV_PTS);
 		if (strncmp(tname, _PATH_DEV_PTS, strlen(_PATH_DEV_PTS))) e(0);
 		n = atoi(&tname[len]);
-		if (n < 0 || n > 9) e(0);
+		if (n < 0 || n > 9) me(0);
 
 		/* Use this index number to create old-style device names. */
 		snprintf(ptest, sizeof(ptest), _PATH_DEV "ptyp%u", n);
@@ -1021,34 +1035,34 @@ test77h(void)
 		 * fails as long as either side of the Unix98 PTY is open.
 		 */
 		if (open(ptest, O_RDWR | O_NOCTTY) >= 0) e(0);
-		if (errno != EACCES && errno != EIO) e(0);
+		if (errno != EACCES && errno != EIO) me(0);
 		if (open(ttest, O_RDWR | O_NOCTTY) >= 0) e(0);
-		if (errno != EACCES && errno != EIO) e(0);
+		if (errno != EACCES && errno != EIO) me(0);
 
 		if (i > 0) {
 			if ((slavefd = open(tname, O_RDWR | O_NOCTTY)) < 0)
 				e(0);
 
 			if (open(ptest, O_RDWR | O_NOCTTY) >= 0) e(0);
-			if (errno != EACCES && errno != EIO) e(0);
+			if (errno != EACCES && errno != EIO) me(0);
 			if (open(ttest, O_RDWR | O_NOCTTY) >= 0) e(0);
-			if (errno != EACCES && errno != EIO) e(0);
+			if (errno != EACCES && errno != EIO) me(0);
 
 			if (close(slavefd) < 0) e(0);
 
 			if (i > 1) {
 				if (open(ptest, O_RDWR | O_NOCTTY) >= 0) e(0);
-				if (errno != EACCES && errno != EIO) e(0);
+				if (errno != EACCES && errno != EIO) me(0);
 				if (open(ttest, O_RDWR | O_NOCTTY) >= 0) e(0);
-				if (errno != EACCES && errno != EIO) e(0);
+				if (errno != EACCES && errno != EIO) me(0);
 
 				if ((slavefd =
 				    open(tname, O_RDWR | O_NOCTTY)) < 0) e(0);
 
 				if (open(ptest, O_RDWR | O_NOCTTY) >= 0) e(0);
-				if (errno != EACCES && errno != EIO) e(0);
+				if (errno != EACCES && errno != EIO) me(0);
 				if (open(ttest, O_RDWR | O_NOCTTY) >= 0) e(0);
-				if (errno != EACCES && errno != EIO) e(0);
+				if (errno != EACCES && errno != EIO) me(0);
 
 				if (close(masterfd) < 0) e(0);
 
@@ -1056,9 +1070,9 @@ test77h(void)
 			}
 
 			if (open(ptest, O_RDWR | O_NOCTTY) >= 0) e(0);
-			if (errno != EACCES && errno != EIO) e(0);
+			if (errno != EACCES && errno != EIO) me(0);
 			if (open(ttest, O_RDWR | O_NOCTTY) >= 0) e(0);
-			if (errno != EACCES && errno != EIO) e(0);
+			if (errno != EACCES && errno != EIO) me(0);
 		}
 
 		if (close(masterfd) < 0) e(0);
@@ -1070,7 +1084,7 @@ test77h(void)
 		 * permission to open the master at all.
 		 */
 		if ((masterfd = open(ptest, O_RDWR | O_NOCTTY)) < 0 &&
-		    errno != EACCES) e(0);
+		    errno != EACCES) me(0);
 
 		if (masterfd >= 0 && close(masterfd) < 0) e(0);
 	}

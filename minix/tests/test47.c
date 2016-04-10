@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef __minix
 #include <machine/frame.h>
+#endif
 
 int max_error = 4;
 #include "common.h"
@@ -18,12 +20,16 @@ int max_error = 4;
 
 static void signal_handler(int signum)
 {
+#ifdef __minix
 	struct sigframe_sigcontext *sigframe;
 	
 	/* report signal */
 	sigframe = (struct sigframe_sigcontext *) ((char *) &signum - 
 		(char *) &((struct sigframe_sigcontext *) NULL)->sf_signum);
 	printf("Signal %d at 0x%x\n", signum, sigframe->sf_scp->sc_eip);
+#else
+	printf("Signal %d\n", signum);
+#endif
 	
 	/* count as error */
 	e(0);
@@ -241,7 +247,7 @@ int main(int argc, char **argv)
 
 	/* some signals count as errors */
 	for (i = 0; i < _NSIG; i++)
-		if (i != SIGINT && i != SIGTERM && i != SIGKILL)
+		if (i != SIGINT && i != SIGTERM && i != SIGKILL && i != SIGCHLD)
 			signal(i, signal_handler);
 		
 	/* test various floating point support functions */

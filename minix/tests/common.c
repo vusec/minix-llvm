@@ -10,7 +10,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <sys/statvfs.h>
-#include <sys/syslimits.h>
 
 #include "common.h"
 
@@ -21,7 +20,12 @@ int quietflag = 1, bigflag = 0;
  * of 5. The test program can override it wit its own max_error
  * symbol if it wants that this code will then use instead.
  */
+#ifdef __minix
 __weak_alias(max_error,Max_error);
+#endif
+#ifdef __linux
+#pragma weak max_error = Max_error
+#endif
 int Max_error = 5;
 extern int max_error;
 
@@ -66,12 +70,14 @@ int does_fs_truncate(void)
   char cwd[PATH_MAX];		/* Storage for path to current working dir */
 
   if (realpath(".", cwd) == NULL) e(7777);	/* Get current working dir */
-  if (statvfs(cwd, &stvfs) != 0) e(7778);	/* Get FS information */
+  if (statvfs(cwd, &stvfs) != 0) me(7778);	/* Get FS information */
   /* Depending on how an FS handles too long file names, we have to adjust our
    * error checking. If an FS does not truncate file names, it should generate
    * an ENAMETOOLONG error when we provide too long a file name.
    */
+#ifdef __minix
   if (!(stvfs.f_flag & ST_NOTRUNC)) does_truncate = 1;
+#endif
  
   return(does_truncate); 
 }

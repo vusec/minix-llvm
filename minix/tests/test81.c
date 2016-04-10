@@ -114,6 +114,7 @@ int main(int argc, char *argv[])
 	debug("entering main()");
 
 	start(81);
+	common_socket_init();
 
 	test_socket(&info);
 	test_bind(&info);
@@ -128,6 +129,7 @@ int main(int argc, char *argv[])
 	test_sockopts(&info);
 	test_simple_client_server(&info, info.type);
 
+	sigpipe_check();
 	quit();
 
 	return -1;	/* we should never get here */

@@ -191,7 +191,7 @@ void test24b()
 	}
   }
   if (i <= 4) e(2);		/* sounds resanable */
-  if (i >= OVERFLOW_DIR_NR) e(3);	/* might be to small */
+  if (i >= OVERFLOW_DIR_NR) me(3);	/* might be to small */
   for (j = 0; j < i; j++) {
 	if (closedir(dirp[(j + 5) % i]) != 0) e(4);	/* neat! */
   }

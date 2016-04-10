@@ -149,7 +149,11 @@ void test11c()
   ruid = getuid();
   euid = geteuid();
   lnamep = getlogin();
-  strcpy(save, lnamep);
+  if (lnamep) {
+	strcpy(save, lnamep);
+  } else {
+	me(0);
+  }
 
   /* Because we are setuid, login != 'root' */
   if (euid != 0) e(1);

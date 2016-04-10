@@ -65,7 +65,7 @@ static void do_child(void) {
   }
 
   /* Going to sleep for three seconds to allow the parent proc to get ready */
-  tv.tv_sec = DO_HANDLEDATA;
+  tv.tv_sec = DO_PAUSE;
   tv.tv_usec = 0; 
   select(0, NULL, NULL, NULL, &tv);
 
@@ -198,6 +198,7 @@ static void do_parent(int child) {
   retval = select(fd_np1+1, &fds_read, &fds_write, NULL, &tv);
 
   /* Did we receive an error? */ 
+#ifdef __minix
   if(retval <= 0) {
     snprintf(errbuf, sizeof(errbuf),
 	     "one fd should be set%s", (retval == 0 ? " (TIMEOUT)" : ""));
@@ -205,12 +206,15 @@ static void do_parent(int child) {
   }
 
   if(!empty_fds(fd_np1+1,&fds_read)) em(2, "no read bits should be set");
+#endif
 
 
   /* Make sure the write bit is set (and just 1 bit) */
   FD_ZERO(&fds_compare_write); FD_SET(fd_np1, &fds_compare_write);
+#ifdef __minix
   if(!compare_fds(fd_np1+1, &fds_compare_write, &fds_write))
     em(3, "write should be set");
+#endif
 
   /* Clear sets and set up new bit masks */
   FD_ZERO(&fds_read); FD_ZERO(&fds_write);
@@ -285,8 +289,10 @@ static void do_parent(int child) {
 
   /* Make sure read bit is set (and just 1 bit) */
   FD_ZERO(&fds_compare_read); FD_SET(fd_np2, &fds_compare_read);
+#ifdef __minix
   if(!compare_fds(fd_np2+1, &fds_compare_read, &fds_read))
     em(8, "read should be set");
+#endif
 
   /* Write bit should be set (and just 1 bit) */
   FD_ZERO(&fds_compare_write); FD_SET(fd_np2, &fds_compare_write);

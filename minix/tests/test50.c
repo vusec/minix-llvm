@@ -136,7 +136,7 @@ off_t size;
 
   /* The size must match. */
   if (fstat(fd, &statbuf) != 0) e(1003);
-  if (statbuf.st_size != size) e(1004);
+  if (statbuf.st_size != size) me(1004);
 
   if (lseek(fd, 0L, SEEK_SET) != 0L) e(1005);
 
@@ -146,11 +146,11 @@ off_t size;
   for (off = 0; off < size; off += chunk) {
 	chunk = MIN(sizeof(buf), size - off);
 
-	if (read(fd, buf, chunk) != chunk) e(1006);
+	if (read(fd, buf, chunk) != chunk) me(1006);
 
 	for (i = 0; i < chunk; i++) {
 		if (off + i >= hole_start && off + i < hole_end) {
-			if (buf[i] != 0) e(1007);
+			if (buf[i] != 0) me(1007);
 		}
 		else {
 			if (buf[i] != data[off+i]) e(1008);
@@ -159,7 +159,7 @@ off_t size;
   }
 
   /* We must get back EOF at the end. */
-  if (read(fd, buf, sizeof(buf)) != 0) e(1009);
+  if (read(fd, buf, sizeof(buf)) != 0) me(1009);
 }
 
 void test50a()
@@ -247,6 +247,7 @@ void test50c()
 
   flock.l_len = 0;
 
+#ifdef __minix
   /* Negative sizes should result in EINVAL. */
   flock.l_whence = SEEK_SET;
   flock.l_start = -1;
@@ -262,11 +263,13 @@ void test50c()
   flock.l_start = -TESTSIZE - 1;
   if (fcntl(fd, F_FREESP, &flock) != -1) e(8);
   if (errno != EINVAL) e(9);
+#endif
 
   /* Make sure the file size did not change. */
   if (fstat(fd, &statbuf) != 0) e(10);
   if (statbuf.st_size != TESTSIZE) e(11);
 
+#ifdef __minix
   /* Proper negative values should work, however. */
   flock.l_whence = SEEK_CUR;
   flock.l_start = -1;
@@ -278,23 +281,28 @@ void test50c()
   flock.l_whence = SEEK_END;
   flock.l_start = -off + 1;
   if (fcntl(fd, F_FREESP, &flock) != 0) e(15);
+#endif
 
   if (fstat(fd, &statbuf) != 0) e(16);
-  if (statbuf.st_size != 0L) e(17);
+  if (statbuf.st_size != 0L) me(17);
 
   close(fd);
 
+#ifdef __minix
   /* Calls on an invalid file descriptor should return EBADF or EINVAL. */
   flock.l_whence = SEEK_SET;
   flock.l_start = 0;
   if (fcntl(fd, F_FREESP, &flock) != -1) e(18);
   if (errno != EBADF && errno != EINVAL) e(19);
+#endif
 
   if ((fd = open(TESTFILE, O_RDONLY)) < 0) e(20);
 
+#ifdef __minix
   /* Calls on a file opened read-only should return EBADF or EINVAL. */
   if (fcntl(fd, F_FREESP, &flock) != -1) e(21);
   if (errno != EBADF && errno != EINVAL) e(22);
+#endif
 
   close(fd);
 
@@ -317,6 +325,7 @@ void test50d()
   off = TESTSIZE / 2;
   if (lseek(fd, off, SEEK_SET) != off) e(3);
 
+#ifdef __minix
   /* The given length must be positive. */
   flock.l_whence = SEEK_CUR;
   flock.l_start = 0;
@@ -375,6 +384,7 @@ void test50d()
   flock.l_start = -1;
   flock.l_len = 2;
   if (fcntl(fd, F_FREESP, &flock) != 0) e(21);
+#endif
 
   /* However, this must never cause the file size to change. */
   if (fstat(fd, &statbuf) != 0) e(22);
@@ -382,17 +392,21 @@ void test50d()
 
   close(fd);
 
+#ifdef __minix
   /* Calls on an invalid file descriptor should return EBADF or EINVAL. */
   flock.l_whence = SEEK_SET;
   flock.l_start = 0;
   if (fcntl(fd, F_FREESP, &flock) != -1) e(24);
   if (errno != EBADF && errno != EINVAL) e(25);
+#endif
 
   if ((fd = open(TESTFILE, O_RDONLY)) < 0) e(26);
 
+#ifdef __minix
   /* Calls on a file opened read-only should return EBADF or EINVAL. */
   if (fcntl(fd, F_FREESP, &flock) != -1) e(27);
   if (errno != EBADF && errno != EINVAL) e(28);
+#endif
 
   close(fd);
 
@@ -510,18 +524,22 @@ off_t nsize;
 
   fd = make_file(osize);
 
+#ifdef __minix
   flock.l_whence = SEEK_SET;
   flock.l_start = nsize;
   flock.l_len = 0;
   if (fcntl(fd, F_FREESP, &flock) != 0) e(1);
+#endif
 
   check_file(fd, osize, nsize, nsize);
 
   if (nsize < osize) {
+#ifdef __minix
 	flock.l_whence = SEEK_SET;
 	flock.l_start = osize;
 	flock.l_len = 0;
 	if (fcntl(fd, F_FREESP, &flock) != 0) e(2);
+#endif
 
 	check_file(fd, nsize, osize, osize);
   }
@@ -568,8 +586,10 @@ int type;
 	e(1);
   }
 
+#ifdef __minix
   flock.l_len = len;
   if (fcntl(fd, F_FREESP, &flock) != 0) e(2);
+#endif
 
   check_file(fd, off, off + len, size);
 
@@ -577,9 +597,11 @@ int type;
    * while freeing up. If not, the server would typically crash; we need not
    * check the results again.
    */
+#ifdef __minix
   flock.l_whence = SEEK_SET;
   flock.l_start = off;
   if (fcntl(fd, F_FREESP, &flock) != 0) e(3);
+#endif
 
   close(fd);
 

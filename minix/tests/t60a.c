@@ -14,5 +14,9 @@ int main(int argc, char *argv[])
 	system(cmd);
   }
 
+#ifdef __minix
   return(issetugid());
+#else
+  return 1;
+#endif
 }

@@ -1,12 +1,13 @@
 #include <arpa/inet.h>
+#include <assert.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/syslimits.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,6 +27,60 @@ void test_open_socket_cloexec(void);
 void test_open_socket_fork(void);
 void start_socket_server(int port);
 int start_socket_client(int port, int flag);
+
+static void timeout_sigalrm(int signo)
+{
+	char buf[] = "timeout\n";
+
+	write(STDERR_FILENO, buf, strlen(buf)); /* no printf in signal handler */
+
+	assert(signo == SIGALRM);
+	signal(SIGALRM, timeout_sigalrm);
+	alarm(1);
+}
+
+static void timeout_start(void)
+{
+	if (signal(SIGALRM, timeout_sigalrm) == SIG_ERR) {
+		e(1000);
+	}
+	alarm(10);
+}
+
+static void timeout_stop(void)
+{
+	int errno_old = errno;
+
+	alarm(0);
+	if (signal(SIGALRM, SIG_DFL) == SIG_ERR) {
+		e(1001);
+	}
+
+	errno = errno_old;
+}
+
+static pid_t timeout_waitpid(pid_t pid, int *status, int options)
+{
+	static const int signals[] = { SIGTERM, SIGKILL, -1 };
+	int i;
+	pid_t r;
+	int sigindex = 0;
+
+	assert(pid > 0);
+
+	timeout_start();
+	for (;;) {
+		r = waitpid(pid, status, options);
+		if (r != -1 || errno != EINTR) break;
+		fprintf(stderr, "waitpid timeout, killing child %d with "
+			"signal %d\n", (int) pid, signals[sigindex]);
+		if (signals[sigindex] < 0) break;
+		kill(pid, signals[sigindex++]);
+	}
+	timeout_stop();
+
+	return r;
+}
 
 void
 copy_subtests()
@@ -79,7 +134,7 @@ test_open_file_cloexec()
 		/* We're the parent */
 		int result;
 
-		if (waitpid(pid, &result, 0) == -1) e(7);
+		if (timeout_waitpid(pid, &result, 0) == -1) e(7);
 		if (WEXITSTATUS(result) != 0) e(8);
 	}
 	close(fd);
@@ -122,7 +177,7 @@ test_open_file_fork()
 		/* We're the parent */
 		int result = 0;
 
-		if (waitpid(pid, &result, 0) == -1) e(7);
+		if (timeout_waitpid(pid, &result, 0) == -1) e(7);
 		if (WEXITSTATUS(result) != 0) e(8);
 	}
 	close(fd);
@@ -133,7 +188,7 @@ start_socket_client(int port, int flag)
 {
 	int fd_sock;
 	struct hostent *he;
-	struct sockaddr_in server;
+	struct sockaddr_in server = { };
 
 	if ((fd_sock = socket(PF_INET, SOCK_STREAM|flag, 0)) < 0) {
 		perror("Error obtaining socket\n");
@@ -144,22 +199,28 @@ start_socket_client(int port, int flag)
 		perror("Error retrieving home\n");
 		e(2);
 	}
+	if (he->h_addrtype != AF_INET) e(4);
+	if (he->h_length != sizeof(server.sin_addr)) e(5);
+	if (!he->h_addr_list) e(6);
+	if (!he->h_addr_list[0]) e(7);
 
 	/* Copy server host result */
 	memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length);
 	server.sin_family = AF_INET;
 	server.sin_port = htons(port);
 
-	/* Normally, we'd zerofill sin_zero, but there is no such thing on
-	 * Minix at the moment */
-#if !defined(__minix)
-	memset(&server.sin_zero, '\0', sizeof(server.sin_zero));
-#endif
-	
+	if (ntohl(server.sin_addr.s_addr) != 0x7f000001) {
+		e(8);
+		fprintf(stderr, "incorrect localhost address: 0x%.8lx\n",
+			(long) ntohl(server.sin_addr.s_addr));
+	}
+
+	timeout_start();
 	if (connect(fd_sock, (struct sockaddr *) &server, sizeof(server)) < 0){
 		perror("Error connecting to server\n");
 		e(3);
 	}
+	timeout_stop();
 
 	return fd_sock;
 }
@@ -172,9 +233,9 @@ start_socket_server(int port)
 	int yes = 1;
 #endif
 	int fd_sock, fd_new, r;
-	struct sockaddr_in my_addr;
+	struct sockaddr_in my_addr = { };
 	struct sockaddr_in other_addr;
-	socklen_t other_size;
+	socklen_t other_size = sizeof(other_addr);
 	char buf[1];
 
 	if ((fd_sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -185,11 +246,6 @@ start_socket_server(int port)
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = htons(port);
 	my_addr.sin_addr.s_addr = INADDR_ANY;
-	/* Normally we'd zerofill sin_zero, but current Minix socket interface
-	 * does not support that field */
-#if !defined(__minix)
-	memset(&my_addr.sin_zero, '\0', sizeof(sin.sin_zero));
-#endif
 	
 	/* Reuse port number when invoking test often */
 #if !defined(__minix)
@@ -213,6 +269,7 @@ start_socket_server(int port)
 	}
 
 	/* Accept incoming connections */
+	timeout_start();
 	fd_new = accept(fd_sock, (struct sockaddr *) &other_addr, &other_size);
 
 	if (fd_new < 0) {
@@ -221,6 +278,7 @@ start_socket_server(int port)
 	}
 
 	r = read(fd_new, buf, sizeof(buf));
+	timeout_stop();
 	exit(0);
 }
 
@@ -266,6 +324,7 @@ test_open_socket_cloexec()
 		pid_t pid_client_fork;
 		int sockfd;
 
+		sleep(1); /* allow time for server to start */
 		sockfd = start_socket_client(CLOEXEC_PORT, SOCK_CLOEXEC);
 		if (sockfd < 0) e(4);
 
@@ -297,14 +356,14 @@ test_open_socket_cloexec()
 			/* Should not reach this */
 			exit(1);
 		} else {
-			if (waitpid(pid_client_fork, &result, 0) < 0) e(8);
+			if (timeout_waitpid(pid_client_fork, &result, 0) < 0) e(8);
 			exit(WEXITSTATUS(result)); /* Pass on error to main */
 		}
 		exit(0);	/* Never reached */
 	}
 
-	if (waitpid(pid_server, &result, 0) < 0) e(3);
-	if (waitpid(pid_client, &result, 0) < 0) e(4);
+	if (timeout_waitpid(pid_server, &result, 0) < 0) e(3);
+	if (timeout_waitpid(pid_client, &result, 0) < 0) e(4);
 
 	/* Let's inspect client result */
 	if (WEXITSTATUS(result) != 0) e(5);
@@ -352,6 +411,7 @@ test_open_socket_fork(void)
 		pid_t pid_client_fork;
 		int sockfd;
 
+		sleep(1); /* allow time for server to start */
 		sockfd = start_socket_client(FORK_PORT, 0);
 		if (sockfd < 0) e(4);
 
@@ -383,14 +443,14 @@ test_open_socket_fork(void)
 			/* Should not reach this */
 			exit(1);
 		} else {
-			if (waitpid(pid_client_fork, &result, 0) < 0) e(8);
+			if (timeout_waitpid(pid_client_fork, &result, 0) < 0) e(8);
 			exit(WEXITSTATUS(result)); /* Pass on error to main */
 		}
 		exit(0);	/* Never reached */
 	}
 
-	if (waitpid(pid_server, &result, 0) < 0) e(3);
-	if (waitpid(pid_client, &result, 0) < 0) e(4);
+	if (timeout_waitpid(pid_server, &result, 0) < 0) e(3);
+	if (timeout_waitpid(pid_client, &result, 0) < 0) e(4);
 
 	/* Let's inspect client result */
 	if (WEXITSTATUS(result) != 0) e(5);

@@ -4,13 +4,14 @@
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/utsname.h>
-#include <sys/syslimits.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifdef __minix
 #include <util.h>
+#endif
 
 #define ITERATIONS 1
 
@@ -132,7 +133,7 @@ test76b(void)
 	 * signal arrives.  When being interrupted, it should return the pipe
 	 * size, as that is the part that has been filled successfully so far.
 	 */
-	if (write(pfd[1], buf, PIPE_BUF * 2) != PIPE_BUF) e(5);
+	if (write(pfd[1], buf, PIPE_BUF * 2) != PIPE_BUF) me(5);
 
 	/*
 	 * Since the write partially succeeded, we should be able to read all
@@ -149,8 +150,8 @@ test76b(void)
 	if (setitimer(ITIMER_REAL, &it, NULL) < 0) e(8);
 
 	/* Now interrupt a write attempt on a full pipe. */
-	if (write(pfd[1], buf, 1) >= 0) e(9);
-	if (errno != EINTR) e(10);
+	if (write(pfd[1], buf, 1) >= 0) me(9);
+	if (errno != EINTR) me(10);
 
 	/* Empty the pipe again. */
 	if (read(pfd[0], buf, PIPE_BUF) != PIPE_BUF) e(11);
@@ -161,8 +162,8 @@ test76b(void)
 	if (setitimer(ITIMER_REAL, &it, NULL) < 0) e(12);
 
 	/* Now interrupt a read on an empty pipe. */
-	if (read(pfd[0], buf, PIPE_BUF) >= 0) e(13);
-	if (errno != EINTR) e(14);
+	if (read(pfd[0], buf, PIPE_BUF) >= 0) me(13);
+	if (errno != EINTR) me(14);
 
 	if (close(pfd[0]) < 0) e(15);
 	if (close(pfd[1]) < 0) e(16);
@@ -232,6 +233,8 @@ test76d(void)
 	char buf[3], *pbuf;
 
 	subtest = 4;
+
+	if (get_setting_quick_test()) runtime = 3;
 
 	/* This test would kill wimpy platforms such as ARM. */
 	if (uname(&name) < 0) e(1);
@@ -414,7 +417,7 @@ test76e(void)
 	if (setitimer(ITIMER_REAL, &it, NULL) < 0) e(6);
 
 	/* The call failed, so the set must be unmodified. */
-	if (left > 0 && !FD_SET(tfd[0], &set)) e(7);
+	if (left > 0 && !FD_ISSET(tfd[0], &set)) e(7);
 
 	if (close(tfd[0]) < 0) e(8);
 	if (close(tfd[1]) < 0) e(9);

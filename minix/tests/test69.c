@@ -124,7 +124,7 @@ static void test_adjtime(void)
   if (clock_gettime(CLOCK_REALTIME, &rt) == -1) e(72);
   show_timespec("Monotonic", &mt);
   show_timespec("Realtime (+7)", &rt);
-  if (rt.tv_sec - 5 < mt.tv_sec || rt.tv_sec - 10 > mt.tv_sec) e(73);
+  if (rt.tv_sec - 5 < mt.tv_sec || rt.tv_sec - 10 > mt.tv_sec) me(73);
 
   delta.tv_sec = -7;
   if (adjtime(&delta, &olddelta) != 0) e(73);	/* adjust -7 seconds */

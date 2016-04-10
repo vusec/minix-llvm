@@ -123,14 +123,14 @@ void test32a()
   while (time3 == time((time_t *)0))
 	;
   time(&time3);
-  if (st1.st_ctime >= st2.st_ctime) e(26);
-  if (st1.st_mtime >= st2.st_mtime) e(27);
+  if (st1.st_ctime >= st2.st_ctime) me(26);
+  if (st1.st_mtime >= st2.st_mtime) me(27);
   if (st1.st_ctime > time1) e(28);
   if (st1.st_mtime > time1) e(29);
   if (st1.st_ctime >= time2) e(30);
   if (st1.st_mtime >= time2) e(31);
-  if (st2.st_ctime < time2) e(32);
-  if (st2.st_mtime < time2) e(33);
+  if (st2.st_ctime < time2) me(32);
+  if (st2.st_mtime < time2) me(33);
   if (st2.st_ctime >= time3) e(34);
   if (st2.st_mtime >= time3) e(35);
 

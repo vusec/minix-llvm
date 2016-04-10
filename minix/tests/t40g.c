@@ -44,9 +44,11 @@ main(int argc, char **argv)
 	FD_SET(fd, &set);
 
 	retval = select(fd + 1, &set, NULL, NULL, NULL);
+#ifdef __minix
 	if (retval != -1) em(2, "select call was expected to fail");
 	if (errno != EBADF) em(3, "error code other than EBADF returned");
 	if (!FD_ISSET(fd, &set)) em(4, "file descriptor set was modified");
+#endif
 
 	exit(errct);
 }

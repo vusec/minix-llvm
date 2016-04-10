@@ -98,8 +98,8 @@ void test38a()
   if (st1.st_size >= st2.st_size) e(13);
   if ((off_t) 4 != st2.st_size) e(14);
   if (st1.st_nlink != st2.st_nlink) e(15);
-  if (st1.st_mtime >= st2.st_mtime) e(16);
-  if (st1.st_ctime >= st2.st_ctime) e(17);
+  if (st1.st_mtime >= st2.st_mtime) me(16);
+  if (st1.st_ctime >= st2.st_ctime) me(17);
   if (st1.st_atime != st2.st_atime) e(18);
 
   /* Lseeks should not change the file status. */
@@ -144,7 +144,7 @@ void test38a()
   Stat("bar", &st2);
   if (st1.st_mtime != st2.st_mtime) e(46);
   if (st1.st_ctime != st2.st_ctime) e(47);
-  if (st1.st_atime >= st2.st_atime) e(48);
+  if (st1.st_atime >= st2.st_atime) me(48);
 
   /* A read of zero bytes should do nothing even at the end of the file. */
   time(&time1);

@@ -9,7 +9,6 @@
 #include <sys/wait.h>
 #include <sys/select.h>
 #include <sys/ptrace.h>
-#include <sys/syslimits.h>
 
 #define ITERATIONS_FULL  3
 #define ITERATIONS_QUICK 1

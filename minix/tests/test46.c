@@ -17,6 +17,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#ifdef __linux
+#define GID_MAX 32767
+#endif
+
 void api_test(void);
 void e(int error_no);
 void group_test(void);
@@ -50,7 +54,7 @@ int main(int argc, char *argv[])
   superuser = (geteuid() == 0);
 
   if(!superuser) {
-  	if(!(setuid(0) || seteuid(0))) {
+  	if(!(setuid(0) == 0 || seteuid(0) == 0)) {
 		printf("Test 46 has to be run as root; test aborted\n");
 		exit(1);
 	}
@@ -184,8 +188,8 @@ void api_test() {
 
   /* Try to set too high a group ID */
   grouplist2[0] = GID_MAX + 1;	/* Out of range */
-  if (setgroups(1, grouplist2) == 0) e(23);
-  if (errno != EINVAL) e(24);
+  if (setgroups(1, grouplist2) == 0) me(23);
+  if (errno != EINVAL) me(24);
 
   free(grouplist);
   free(grouplist2);

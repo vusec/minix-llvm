@@ -219,6 +219,12 @@ void test26c()
   if ((fd = open("file", O_RDWR)) != 3) e(17);
   for (i = -1000; i < 1000; i++) {
 	if (i == SEEK_SET || i == SEEK_END || i == SEEK_CUR) continue;
+#ifdef SEEK_DATA
+	if (i == SEEK_DATA) continue;
+#endif
+#ifdef SEEK_HOLE
+	if (i == SEEK_HOLE) continue;
+#endif
 	if (lseek(fd, (off_t) 0, i) != (off_t) -1) e(18);
 	if (errno != EINVAL) e(19);
   }

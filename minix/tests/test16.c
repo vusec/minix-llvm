@@ -263,13 +263,13 @@ void test16f()
   lseek(fd, 0L, SEEK_SET);
   if (read(fd, buf, 35) != 35) e(65);
   get_times("T16.g", &ta, &tc, &tm);
-  if (a == ta || c != tc || m != tm) e(66);
+  if (a == ta || c != tc || m != tm) me(66);
   if (write(fd1, buf, 35) != 35) e(67);
   get_times("T16.h", &ta, &tc, &tm);
   if (pa != ta || pc == tc || pm == tm) e(69);
   if (rename("T16.i", "T16.i1") != 0) e(70);
   get_times("T16.i1", &ta, &tc, &tm);
-  if (xa != ta || xc != tc || xm != tm) e(71);
+  if (xa != ta || xc != tc || xm != tm) me(71);
   get_times(".", &a, &c, &m);
   if (a != wa || c == wc || m == wm || wc != wm) e(72);
   if (chmod("T16.j", 0777) != 0) e(73);
@@ -306,7 +306,7 @@ void test16g()
   sleep(1);
   truncate("T16.l", s.st_size);
   get_times("T16.l", &ta, &tc, &tm);
-  if (a != ta || c != tc || m != tm) e(88);
+  if (a != ta || c != tc || m != tm) me(88);
 
 }
 

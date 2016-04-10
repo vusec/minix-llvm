@@ -181,7 +181,7 @@ void test25b()
   if (st1.st_mtime != st3.st_mtime) e(50);
   if (st1.st_ctime != st3.st_ctime) e(51);
 #ifndef V1_FILESYSTEM
-  if (st1.st_atime >= st3.st_atime) e(52);	/* except for atime. */
+  if (st1.st_atime >= st3.st_atime) me(52);	/* except for atime. */
 #endif
   if (write(fd2, "Howdy\n", 6) != 6) e(53);	/* Update c & mtime. */
   if ((fd1 = open("ha", O_RDWR)) != 3) e(54);
@@ -193,11 +193,11 @@ void test25b()
   if (st2.st_gid != st3.st_gid) e(59);	/* should be same */
   if (st2.st_mode != st3.st_mode) e(60);
   if (st2.st_nlink != st3.st_nlink) e(61);
-  if (st2.st_ctime >= st3.st_ctime) e(62);
+  if (st2.st_ctime >= st3.st_ctime) me(62);
 #ifndef V1_FILESYSTEM
-  if (st2.st_atime >= st3.st_atime) e(63);
+  if (st2.st_atime >= st3.st_atime) me(63);
 #endif
-  if (st2.st_mtime >= st3.st_mtime) e(64);
+  if (st2.st_mtime >= st3.st_mtime) me(64);
   if (st2.st_size != st3.st_size) e(65);
   if (close(fd2) != 0) e(66);
 
@@ -270,9 +270,11 @@ void test25b()
   if (close(fd1) != 0) e(107);
 
   /* Check the effect of O_CREAT */
+  memset(&st1, 0, sizeof(st1));
   Stat("ho", &st1);
   fd1 = open("ho", O_RDWR | O_CREAT, 0000);
   if (fd1 != 3) e(108);
+  memset(&st2, 0, sizeof(st2));
   Stat("ho", &st2);
   if (memcmp(&st1, &st2, sizeof(struct stat)) != 0) e(109);
   if (read(fd1, buf, 6) != 6) e(110);
@@ -297,7 +299,7 @@ void test25b()
   if (st1.st_gid != getegid()) e(117);
   if ((st1.st_mode & 0777) != 0716) e(118);
   if (st1.st_nlink != 1) e(119);
-  if (st1.st_mtime <= time1) e(120);
+  if (st1.st_mtime <= time1) me(120);
   if (st1.st_mtime >= time2) e(121);
 #ifndef V1_FILESYSTEM
   if (st1.st_atime != st1.st_mtime) e(122);
@@ -320,7 +322,7 @@ void test25b()
   time(&time2);
   if ((st1.st_mode & 0777) != 0716) e(131);
   if (st1.st_size != (size_t) 0) e(132);	/* TRUNCed ? */
-  if (st1.st_mtime <= time1) e(133);
+  if (st1.st_mtime <= time1) me(133);
   if (st1.st_mtime >= time2) e(134);
   if (st1.st_ctime != st1.st_mtime) e(135);
   if (close(fd1) != 0) e(136);

@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
 	debug("entering main()");
 
 	start(80);
+	common_socket_init();
 
 	test_socket(&info);
 	test_bind(&info);
@@ -130,11 +131,14 @@ int main(int argc, char *argv[])
 	test_abort_client_server(&info, 2);
 	test_nonblock(&info);
 	test_connect_nb(&info);
+#ifdef __minix
 	test_intr(&info);
 	test_connect_close(&info);
 	test_listen_close(&info);
 	test_listen_close_nb(&info);
+#endif
 
+	sigpipe_check();
 	quit();
 
 	return -1;	/* we should never get here */

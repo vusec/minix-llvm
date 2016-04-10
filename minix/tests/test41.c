@@ -6,11 +6,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#ifdef __minix
 #include <minix/config.h>
+#endif
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#include <sys/syslimits.h>
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
@@ -59,6 +60,12 @@ int do_check(void);
 void got_alarm(int sig);
 void busy_wait(int secs);
 #define my_e(n) do { printf("Timer %s, ", names[timer]); e(n); } while(0)
+
+#ifdef __minix
+#define my_me(n) my_e(n)
+#else
+#define my_me(n)
+#endif
 
 static char *executable;
 static int signals;
@@ -175,7 +182,7 @@ void test_neglarge()
   if (setitimer(timer, &it, NULL)) my_e(1);
 
   FILLITIMER(it, 1000000000, 0, 0, 0);
-  if (!setitimer(timer, &it, NULL) || errno != EINVAL) my_e(2);
+  if (!setitimer(timer, &it, NULL) || errno != EINVAL) my_me(2);
 
   FILLITIMER(it, 0, 1000000, 0, 0);
   if (!setitimer(timer, &it, NULL) || errno != EINVAL) my_e(3);
@@ -196,7 +203,7 @@ void test_neglarge()
   if (!setitimer(timer, &it, NULL) || errno != EINVAL) my_e(8);
 
   if (getitimer(timer, &it)) my_e(9);
-  if (!LEITIMER(it, 4, 0, 5, 0)) my_e(10);
+  if (!LEITIMER(it, 4, 0, 5, 0)) my_me(10);
 }
 
 /* setitimer with a zero timer has to set the interval to zero as well */
@@ -213,7 +220,7 @@ void test_zero()
 
   if (setitimer(timer, &it, NULL)) my_e(1);
   if (getitimer(timer, &it)) my_e(2);
-  if (!EQITIMER(it, 0, 0, 0, 0)) my_e(3);
+  if (!EQITIMER(it, 0, 0, 0, 0)) my_me(3);
 }
 
 /* test actual timer functioning */

@@ -46,10 +46,12 @@ static void handler(int signal)
 int main(int argc, char *argv[])
 {
 	pid_t child_pid;
+	struct sigaction sa = { };
 
 	printf("Test 57 ");
 
-	if(signal(SIGNAL, handler) == SIG_ERR)
+	sa.sa_handler = handler;
+	if(sigaction(SIGNAL, &sa, NULL) != 0)
 		err(1, "signal");
 
 	fflush(NULL);

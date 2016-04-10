@@ -75,8 +75,10 @@ int             Arr_2_Glob [50] [50];
 
 #ifdef TIMES
 struct tms      time_info;
+#ifndef __linux
 extern  int     times ();
                 /* see library function "times" */
+#endif
 #define Too_Small_Time 120
                 /* Measurements should last at least about 2 seconds */
 #endif

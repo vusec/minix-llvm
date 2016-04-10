@@ -239,7 +239,7 @@ void test02()
   }
 
   /* Already twenty files opened; opening another has to fail */
-  if (creat("file02", 0777) != FAIL) e(4);
+  if (creat("file02", 0777) != FAIL) me(4);
   else
 	if (errno != EMFILE) e(5);;
 
@@ -481,9 +481,9 @@ char a[];
 	if (errno != EBADF) e(89);
 
   /* Wrong length */
-  if (read(filedes, b, -ARSIZE) != FAIL) e(90);
+  if (read(filedes, b, -ARSIZE) != FAIL) me(90);
   else
-	if (errno != EINVAL) e(91);
+	if (errno != EINVAL) me(91);
 }				/* read_standards */
 
 void read_more(filedes, a)
@@ -615,7 +615,7 @@ void test05()
   else
 	/* Maximum # of files opened now, another open should fail
 	 * because * all filedescriptors have already been used.                      */
-  if (open("drwx/rwx", RW) != FAIL) e(26);
+  if (open("drwx/rwx", RW) != FAIL) me(26);
   else
 	if (errno != EMFILE) e(27);
   if (close_alot(n) != n) e(28);
@@ -1006,7 +1006,7 @@ char *name;
 void try_unlink(fname)
 char *fname;
 {
-  if (unlink(fname) != 0) e(101);
+  if (unlink(fname) != 0) me(101);
 }				/* try_unlink */
 
 void Remove(fdes, fname)

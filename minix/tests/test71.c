@@ -12,7 +12,9 @@
  */
 
 #include <sys/types.h>
+#ifdef __minix
 #include <sys/ioc_memory.h>
+#endif
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>

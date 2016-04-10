@@ -31,8 +31,8 @@ main(int argc, char *argv[])
 	start(44);
 
 	for(i = 0; i < CHUNKS; i++) {
-		v[i] = mmap(vaddr, CHUNKSIZE, PROT_READ|PROT_WRITE, 0,
-				  -1, 0);
+		v[i] = mmap(vaddr, CHUNKSIZE, PROT_READ|PROT_WRITE,
+			    MAP_PRIVATE|MAP_ANON, -1, 0);
 		if(v[i] == MAP_FAILED) {
 			perror("mmap");
 			fprintf(stderr, "mmap failed\n");

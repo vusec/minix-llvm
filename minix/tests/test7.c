@@ -230,23 +230,23 @@ void test7c()
 
   /* Turn the open-file-description flags on and off. Start with O_APPEND. */
   m = O_WRONLY;
-  if (fcntl(fd, F_GETFL) != m) e(7);	/* O_APPEND, O_NONBLOCK are off */
+  if (fcntl(fd, F_GETFL) != m) me(7);	/* O_APPEND, O_NONBLOCK are off */
   if (fcntl(fd, F_SETFL, O_APPEND) != 0) e(8);	 /* turn on O_APPEND */
-  if (fcntl(fd, F_GETFL) != (O_APPEND | m)) e(9);/* should be on now */
+  if (fcntl(fd, F_GETFL) != (O_APPEND | m)) me(9);/* should be on now */
   if (fcntl(fd, F_SETFL, 0) != 0) e(10);	 /* turn it off */
-  if (fcntl(fd, F_GETFL) != m) e(11);		 /* should be off now */
+  if (fcntl(fd, F_GETFL) != m) me(11);		 /* should be off now */
   
   /* Turn the open-file-description flags on and off. Now try O_NONBLOCK.  */
   if (fcntl(fd, F_SETFL, O_NONBLOCK) != 0) e(12);      /* turn on O_NONBLOCK */
-  if (fcntl(fd, F_GETFL) != (O_NONBLOCK | m)) e(13);   /* should be on now */
+  if (fcntl(fd, F_GETFL) != (O_NONBLOCK | m)) me(13);   /* should be on now */
   if (fcntl(fd, F_SETFL, 0) != 0) e(14);	       /* turn it off */
-  if (fcntl(fd, F_GETFL) != m) e(15);		       /* should be off now */
+  if (fcntl(fd, F_GETFL) != m) me(15);		       /* should be off now */
   
   /* Now both at once. */
   if (fcntl(fd, F_SETFL, O_APPEND|O_NONBLOCK) != 0) e(16);
-  if (fcntl(fd, F_GETFL) != (O_NONBLOCK | O_APPEND | m)) e(17);
+  if (fcntl(fd, F_GETFL) != (O_NONBLOCK | O_APPEND | m)) me(17);
   if (fcntl(fd, F_SETFL, 0) != 0) e(18);
-  if (fcntl(fd, F_GETFL) != m) e(19);
+  if (fcntl(fd, F_GETFL) != m) me(19);
 
   /* Now test F_DUPFD. */
   if ( (newfd = fcntl(fd, F_DUPFD, 0)) != 4) e(20);	/* 0-4 open */
@@ -262,7 +262,7 @@ void test7c()
   if (fcntl(fd, F_SETFL, O_APPEND) != 0) e(27);	 /* turn O_APPEND on */
   if ( (newfd2 = fcntl(fd, F_DUPFD, 10)) != 10) e(28);	/* 0-3, 6, 10 open */
   if (fcntl(newfd2, F_GETFD) != 0) e(29);	/* FD_CLOEXEC must be 0 */
-  if (fcntl(newfd2, F_GETFL) != (O_APPEND | m)) e(30);	/* O_APPEND set */
+  if (fcntl(newfd2, F_GETFL) != (O_APPEND | m)) me(30);	/* O_APPEND set */
   if (fcntl(fd, F_SETFD, 0) != 0) e(31);/* turn FD_CLOEXEC off */
 
   /* Check if newfd and newfd2 are the same inode. */
@@ -562,16 +562,16 @@ void test7i()
 
   /* Check for EINVAL. */
   errno = 0;
-  if (fcntl(xfd, F_DUPFD, OPEN_MAX) != -1) e(20);
-  if (errno != EINVAL) e(21);
+  if (fcntl(xfd, F_DUPFD, OPEN_MAX) != -1) me(20);
+  if (errno != EINVAL) me(21);
   errno = 0;
   if (fcntl(xfd, F_DUPFD, -1) != -1) e(22);
   if (errno != EINVAL) e(23);
 
   xfd = 0;			/* stdin does not support locking */
   errno = 0;
-  if (set(READ, 0, 0) != -1) e(24);
-  if (errno != EINVAL) e(25);
+  if (set(READ, 0, 0) != -1) me(24);
+  if (errno != EINVAL) me(25);
   xfd = tfd;
 
   /* Check ENOLCK. */

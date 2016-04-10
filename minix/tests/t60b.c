@@ -13,7 +13,11 @@ int main(int argc, char **argv)
   childpid = fork();
   if (childpid == (pid_t) -1) exit(-2);
   else if (childpid == 0) {
+#ifdef __minix
 	exit(issetugid());
+#else
+	return 1;
+#endif
   } else {
 	wait(&status);
   }

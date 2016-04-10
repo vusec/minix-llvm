@@ -8,9 +8,26 @@
 #include <time.h>
 #include <sys/statvfs.h>
 
+#ifdef __minix
+#include <sys/syslimits.h>
+#endif
+
+#ifdef __linux
+#include <limits.h>
+#ifndef OPEN_MAX
+#define OPEN_MAX 1024
+#endif
+#endif
+
 #define e(errn) e_f(__FILE__, __LINE__, (errn))
 #define em(errn,msg) do { fprintf(stderr, "%s\n", msg); e(errn); } while(0)
 #define efmt(...) fail_printf(__FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
+
+#ifdef __minix
+#define me(x) e(x)
+#else
+#define me(x)
+#endif
 
 #define BIGVARNAME "BIGTEST"
 

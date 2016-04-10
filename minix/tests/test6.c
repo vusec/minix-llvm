@@ -63,7 +63,11 @@ void test6a()
 	del++;
 	brk(addr + del);
 	addr2 = sbrk(0);
+#ifdef __minix
   } while (addr2 == addr);
+#else
+  } while (0);
+#endif
   click = addr2 - addr;
   sbrk(-1);
   if (sbrk(0) != addr) e(4);
@@ -75,13 +79,17 @@ void test6a()
 	del++;
 	brk(addr - del);
 	addr3 = sbrk(0);
+#ifdef __minix
   } while (addr3 == addr);
+#else
+  } while (0);
+#endif
   click2 = addr - addr3;
   sbrk(1);
-  if (sbrk(0) != addr) e(6);
+  if (sbrk(0) != addr) me(6);
   brk(addr);
   if (sbrk(0) != addr) e(8);
-  if (click != click2) e(9);
+  if (click != click2) me(9);
 
   brk(addr + 2 * click);
   if (sbrk(0) != addr + 2 * click) e(10);

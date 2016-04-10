@@ -36,7 +36,7 @@ spin(void)
 	}
 	end_time = start_time;
 	do {
-		if ((++loop % 3000000000) == 0) {
+		if ((++loop % 3000000000U) == 0) {
 			if (gettimeofday(&end_time, NULL) == -1) {
 				e(1);
 				exit(1);
@@ -48,18 +48,28 @@ spin(void)
 int
 main(int argc, char *argv[])
 {
+	int i;
 	struct rusage r_usage1;
 	struct rusage r_usage2;
 	struct rusage r_usage3;
 	pid_t child;
 	int status = 0;
 	start(75);
-	if ((getrusage(RUSAGE_SELF + 1, &r_usage1) != -1 || errno != EINVAL) ||
-		(getrusage(RUSAGE_CHILDREN - 1, &r_usage1) != -1 ||
-		 errno != EINVAL) || (getrusage(RUSAGE_SELF, NULL) != -1 ||
-		 errno != EFAULT)) {
+	for (i = -16; i <= 16; i++) {
+		if (i == RUSAGE_SELF) continue;
+		if (i == RUSAGE_CHILDREN) continue;
+#ifdef RUSAGE_BOTH
+		if (i == RUSAGE_BOTH) continue;
+#endif
+#ifdef RUSAGE_THREAD
+		if (i == RUSAGE_THREAD) continue;
+#endif
+		if ((getrusage(i, &r_usage1) != -1 || errno != EINVAL)) {
+			e(1);
+		}
+	}
+	if ((getrusage(RUSAGE_SELF, NULL) != -1 || errno != EFAULT)) {
 		e(1);
-		exit(1);
 	}
 	spin();
 	if (getrusage(RUSAGE_SELF, &r_usage1) != 0) {
@@ -68,17 +78,21 @@ main(int argc, char *argv[])
 	}
 	CHECK_NOT_ZERO_FIELD(r_usage1, ru_utime.tv_sec);
 	CHECK_NOT_ZERO_FIELD(r_usage1, ru_maxrss);
+#ifdef __minix
 	CHECK_NOT_ZERO_FIELD(r_usage1, ru_ixrss);
 	CHECK_NOT_ZERO_FIELD(r_usage1, ru_idrss);
 	CHECK_NOT_ZERO_FIELD(r_usage1, ru_isrss);
+#endif
 	if (getrusage(RUSAGE_CHILDREN, &r_usage2) != 0) {
 		e(1);
 		exit(1);
 	}
 	CHECK_NOT_ZERO_FIELD(r_usage2, ru_maxrss);
+#ifdef __minix
 	CHECK_NOT_ZERO_FIELD(r_usage2, ru_ixrss);
 	CHECK_NOT_ZERO_FIELD(r_usage2, ru_idrss);
 	CHECK_NOT_ZERO_FIELD(r_usage2, ru_isrss);
+#endif
 	CHECK_EQUAL_FIELD(r_usage1, r_usage2, ru_ixrss);
 	CHECK_EQUAL_FIELD(r_usage1, r_usage2, ru_idrss);
 	CHECK_EQUAL_FIELD(r_usage1, r_usage2, ru_isrss);
@@ -110,9 +124,11 @@ main(int argc, char *argv[])
 		}
 		CHECK_NOT_ZERO_FIELD(r_usage3, ru_utime.tv_sec);
 		CHECK_NOT_ZERO_FIELD(r_usage3, ru_maxrss);
+#ifdef __minix
 		CHECK_NOT_ZERO_FIELD(r_usage3, ru_ixrss);
 		CHECK_NOT_ZERO_FIELD(r_usage3, ru_idrss);
 		CHECK_NOT_ZERO_FIELD(r_usage3, ru_isrss);
+#endif
 		CHECK_EQUAL_FIELD(r_usage1, r_usage3, ru_ixrss);
 		CHECK_EQUAL_FIELD(r_usage1, r_usage3, ru_idrss);
 		CHECK_EQUAL_FIELD(r_usage1, r_usage3, ru_isrss);

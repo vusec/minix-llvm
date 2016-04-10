@@ -34,9 +34,13 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#ifdef __minix
 #include <sys/ioc_memory.h>
+#endif
 #include <sys/param.h>
+#ifdef __minix
 #include <minix/paths.h>
+#endif
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -44,6 +48,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
+
+#ifdef __linux
+#define _PATH_PROC "/proc/"
+#include <sys/stat.h>
+#endif
 
 #include "common.h"
 #include "testcache.h"
@@ -156,12 +165,14 @@ static void do_getdents(void *buf, int fd, int writable)
 	int r;
 	if(fstat(fd, &sb) < 0) e(1);
 	if(!S_ISDIR(sb.st_mode)) return;	/* OK */
+#ifdef __minix
 	r = getdents(fd, buf, PAGE_SIZE);
 	if(writable) { if(r < 0) e(3); return; }
 
 	/* should fail with EFAULT if buf is not */
 	if(r >= 0) e(4);
 	if(errno != EFAULT) e(5);
+#endif
 }
 
 static void do_readlink1(void *buf, int fd, int writable)
@@ -271,8 +282,10 @@ static void make_buffers(int size,
 	if(*ret_fd_ro < 0) { e(1); }
 	fillfile(*ret_fd_rw, size);
 	fillfile(*ret_fd_ro, size);
+#ifdef __minix
 	if(fcntl(*ret_fd_rw, F_FLUSH_FS_CACHE) < 0) { e(4); }
 	if(fcntl(*ret_fd_ro, F_FLUSH_FS_CACHE) < 0) { e(4); }
+#endif
 
 	if((*filebuf_rw = mmap(0, size, PROT_READ | PROT_WRITE,
 		MAP_PRIVATE | MAP_FILE, *ret_fd_rw, 0)) == MAP_FAILED) {
@@ -301,8 +314,10 @@ static void forget_buffers(void *buf1, void *buf2, void *buf3, int fd1, int fd2,
 	if(munmap(buf1, size) < 0) { e(1); }
 	if(munmap(buf2, size) < 0) { e(2); }
 	if(munmap(buf3, size) < 0) { e(2); }
+#ifdef __minix
 	if(fcntl(fd1, F_FLUSH_FS_CACHE) < 0) { e(3); }
 	if(fcntl(fd2, F_FLUSH_FS_CACHE) < 0) { e(3); }
+#endif
 	if(close(fd1) < 0) { e(4); }
 	if(close(fd2) < 0) { e(4); }
 }
@@ -327,7 +342,11 @@ struct {
 
 static void test_memory_types_vs_operations(void)
 {
+#ifdef __minix
 #define NFDS 4
+#else
+#define NFDS 3
+#endif
 #define BUFSIZE (10 * PAGE_SIZE)
 	int exp, fds[NFDS];
 	int f = 0, size = BUFSIZE;
@@ -337,14 +356,18 @@ static void test_memory_types_vs_operations(void)
 	fds[f] = open(fn, mode); if(fds[f] < 0) { e(2); } f++; }
 	OPEN("regular", O_RDWR | O_CREAT);
 	OPEN(".", O_RDONLY);
+#ifdef __minix
 	OPEN("/dev/ram", O_RDWR);
+#endif
 	OPEN("/dev/zero", O_RDWR);
 
 	/* make sure the regular file has plenty of size to play with */
 	fillfile(fds[0], BUFSIZE);
 
 	/* and the ramdisk too */
+#ifdef __minix
         if(ioctl(fds[2], MIOCRAMSIZE, &size) < 0) { e(3); }
+#endif
 
 	for(exp = 0; exp < NEXPERIMENTS; exp++) {
 		for(f = 0; f < NFDS; f++) {
@@ -414,8 +437,10 @@ static void basic_regression(void)
 	}
 
 	/* clear cache of files before mmap so pages won't be present already */
+#ifdef __minix
 	if(fcntl(fd1, F_FLUSH_FS_CACHE) < 0) { e(1); }
 	if(fcntl(fd2, F_FLUSH_FS_CACHE) < 0) { e(1); }
+#endif
 
 #define LOCATION1 (void *) 0x90000000
 #define LOCATION2 ((void *)((char *)LOCATION1 + PAGE_SIZE))
@@ -476,6 +501,10 @@ nonedev_regression(void)
 	unsigned long uptime1, uptime2, uptime3;
 
 	subtest++;
+
+#ifdef __linux
+	return; /* mmap of /proc/uptime not supported */
+#endif
 
 	if ((fd = open(_PATH_PROC "uptime", O_RDONLY)) < 0) e(1);
 

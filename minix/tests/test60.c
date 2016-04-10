@@ -32,8 +32,8 @@ int execute(const char *prog, const char *arg)
 		exit(-2);
 	}
 	return(-2);	/* Never reached */
-  } else {
-	wait(&status);
+  } else if (waitpid(childpid, &status, 0) < 0) {
+	e(1000);
   }
 
   return(WEXITSTATUS(status));
@@ -136,12 +136,14 @@ void test_effugid(void)
   else if (childpid == 0) {
 	/* We're the child */
 
+#ifdef __minix
 	/* We should be tainted */
 	if (issetugid() != 1) e(2);
+#endif
 
 	/* Now execute a program without set{u,g}id; should not be tainted */
 	system("chmod 755 nobits");
-	if (execute("nobits", "0000") != 0) e(3);
+	if (execute("nobits", "0000") != 0) me(3);
 
 	/* Change effective uid into current+42 and try nobits again. This time
 	 * it should be tainted */
@@ -159,12 +161,14 @@ void test_effugid(void)
   else if (childpid == 0) {
 	/* We're the child */
 
+#ifdef __minix
 	/* We should be tainted */
 	if (issetugid() != 1) e(2);
+#endif
 
 	/* Now execute a program without set{u,g}id; should not be tainted */
 	system("chmod 755 nobits");
-	if (execute("nobits", "0000") != 0) e(3);
+	if (execute("nobits", "0000") != 0) me(3);
 
 	/* Change effective gid into current+42 and try nobits again. This time
 	 * it should be tainted */
@@ -185,22 +189,22 @@ void test_setnone(void)
   /* When we exec a new process which doesn't have set{u,g}id set, that
    * process should not be tainted */
   system("chmod 755 nobits");
-  if (execute("nobits", "0000") != 0) e(2);
+  if (execute("nobits", "0000") != 0) me(2);
 
   /* When we exec a new process which doesn't have set{u,g}id set, but
    * sets them after execution, the process should still not be tainted
    */
   system("chmod 755 nobits");
-  if (execute("nobits", "02755") != 0) e(4);
+  if (execute("nobits", "02755") != 0) me(4);
   system("chmod 755 nobits");
-  if (execute("nobits", "04755") != 0) e(3);
+  if (execute("nobits", "04755") != 0) me(3);
   system("chmod 755 nobits");
-  if (execute("nobits", "06755") != 0) e(5);
+  if (execute("nobits", "06755") != 0) me(5);
 
   /* When we exec a new process that doesn't have setugid set, and which upon
    * execution forks, the forked child should not be tainted either */
   system("chmod 755 nobitsfork");
-  if (execute("nobitsfork", "0000") != 0) e(6);
+  if (execute("nobitsfork", "0000") != 0) me(6);
 }
 
 void test_self(void)
@@ -212,20 +216,26 @@ void test_self(void)
 
   subtest = 1;
 
+#ifdef __minix
   if (issetugid() != 1) e(1);
+#endif
   childpid = fork();
   if (childpid == -1) e(2);
   else if (childpid == 0) {
 	/* We're the child and should inherit the tainted status of the parent
 	 */
+#ifdef __minix
 	if (issetugid() != 1) e(3);
+#endif
 
 	/* Let's change to the bin user */
 	if (setuid((uid_t) 2) != 0) e(4);
 	if (getuid() != (uid_t) 2) e(5);
 
 	/* At this point, taint status should not have changed. */
+#ifdef __minix
 	if (issetugid() != 1) e(6);
+#endif
 
 	exit(EXIT_SUCCESS);
   } else {

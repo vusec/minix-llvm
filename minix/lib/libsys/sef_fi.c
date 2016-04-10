@@ -243,8 +243,8 @@ int do_sef_fi_init(const struct sef_fi_callbacks *callbacks)
 
     edfi_inject_bb = edfi_context->c.faulty_bb_index = hypermem_edfi_faultindex_get(&session, edfi_module_name);
 
-    if ((edfi_faultinjection_enabled  == 0)
-    && (edfi_context->c.faulty_bb_index != 0)) {
+    /*if ((edfi_faultinjection_enabled  == 0)
+    && (edfi_context->c.faulty_bb_index != 0))*/ {
         edfi_faultinjection_enabled = 1;
         edfi_onfault_p = onfault_hyper;
     }

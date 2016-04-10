@@ -212,8 +212,8 @@ void test23c()
   if (strcmp(buf, cwd2) != 0) e(24);
   if (chdir("bar") != 0) e(25);	/* at .../foo/bar */
   if (!superuser) {
-	if (getcwd(buf, PATH_MAX) != (char *) 0) e(26);
-	if (errno != EACCES) e(27);
+	if (getcwd(buf, PATH_MAX) != (char *) 0) me(26);
+	if (errno != EACCES) me(27);
   }
   if (superuser) {
 	if (getcwd(buf, PATH_MAX) != buf) e(28);
@@ -223,8 +223,8 @@ void test23c()
   if (strcmp(buf, cwd2) != 0) e(31);
   System("chmod 677 .");	/* make foo inaccessable */
   if (!superuser) {
-	if (getcwd(buf, PATH_MAX) != (char *) 0) e(32);	/* try to get cwd */
-	if (errno != EACCES) e(33);	/* but no access */
+	if (getcwd(buf, PATH_MAX) != (char *) 0) me(32);	/* try to get cwd */
+	if (errno != EACCES) me(33);	/* but no access */
 	if (chdir("..") != -1) e(34);	/* try to get back */
 	if (errno != EACCES) e(35);	/* again no access */
 	if (chdir(cwd) != 0) e(36);	/* get back to cwd */

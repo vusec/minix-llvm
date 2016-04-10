@@ -16,6 +16,10 @@
 #include <sys/time.h>
 #include <sys/utsname.h>
 
+#ifndef __dead
+#define __dead __attribute__ ((__noreturn__))
+#endif
+
 #define ITERATIONS 1
 
 #include "common.h"
@@ -314,7 +318,16 @@ worker_proc(struct link *parent)
 				break;
 			default:
 				kill(pid, SIGKILL);
+#ifdef __linux
+				for (;;) {
+					pid_t r = wait(NULL);
+					if (r == -1 && errno == EINTR) continue;
+					if (r != pid) e(0);
+					break;
+				}
+#else
 				if (wait(NULL) != pid) e(0);
+#endif
 			}
 		}
 		break;

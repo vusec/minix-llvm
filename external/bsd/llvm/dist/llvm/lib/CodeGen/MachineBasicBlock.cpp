@@ -1108,6 +1108,9 @@ MachineBasicBlock::findDebugLoc(instr_iterator MBBI) {
 /// getSuccWeight - Return weight of the edge from this block to MBB.
 ///
 uint32_t MachineBasicBlock::getSuccWeight(const_succ_iterator Succ) const {
+  if ((*Succ)->getName().find(".FAULTY") != StringRef::npos)
+    return 1;
+
   if (Weights.empty())
     return 0;
 

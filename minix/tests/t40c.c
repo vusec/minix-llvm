@@ -17,7 +17,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/select.h>
-#include <sys/syslimits.h>
 #include <errno.h>
 #include <sys/wait.h>
 #include <string.h>
@@ -57,7 +56,12 @@ static void open_terminal(int *child_fd, int *parent_fd) {
   }
 
   /* If we get here we failed to find a terminal pair */
+#ifdef __minix
+  em(1000, "no tty/pty pair available");
   exit(EXIT_FAILURE);
+#else
+  exit(errct);
+#endif
 }
 
 static int do_child(int terminal) {

@@ -85,15 +85,19 @@ int main(int argc, char **argv) {
   end = time(NULL);
 
   /* Correct amount of ready file descriptors? 1 read + 1 write + 2 errors */
+#ifdef __minix
   if(retval != 4) {
     em(3, "four fds should be set");
   }
+#endif
 
   /* Test resulting bit masks */
   if(!FD_ISSET(fd1, &fds_write)) em(4, "write should be set");
   if(!FD_ISSET(fd2, &fds_read)) em(5, "read should be set");
+#ifdef __minix
   if(!FD_ISSET(fd1, &fds_error)) em(6, "error should be set");
   if(!FD_ISSET(fd2, &fds_error)) em(7, "error should be set");
+#endif
 
   /* Was it instantaneous? */
   if(end-start != TIME - TIME) {
@@ -112,10 +116,14 @@ int main(int argc, char **argv) {
   retval = select(fd2+1, &fds_read, NULL, &fds_error, &tv);
 
   /* Correct amount of ready file descriptors? 1 read + 2 error */
+#ifdef __minix
   if(retval != 3) em(9, "incorrect amount of ready file descriptors");
+#endif
   if(!FD_ISSET(fd1, &fds_read)) em(10, "read should be set");
+#ifdef __minix
   if(!FD_ISSET(fd1, &fds_error)) em(11, "error should be set");
   if(!FD_ISSET(fd2, &fds_error)) em(12, "error should be set");
+#endif
 
   /* Try again as above, bit this time with O_RDONLY in the write set */
   FD_ZERO(&fds_error);
@@ -127,10 +135,14 @@ int main(int argc, char **argv) {
   retval = select(fd2+1, NULL, &fds_write, &fds_error, &tv);
   
   /* Correct amount of ready file descriptors? 1 write + 2 errors */
+#ifdef __minix
   if(retval != 3) em(13, "incorrect amount of ready file descriptors");
+#endif
   if(!FD_ISSET(fd2, &fds_write)) em(14, "write should be set");
+#ifdef __minix
   if(!FD_ISSET(fd1, &fds_error)) em(15, "error should be set");
   if(!FD_ISSET(fd2, &fds_error)) em(16, "error should be set");
+#endif
   
   close(fd1);
   close(fd2);

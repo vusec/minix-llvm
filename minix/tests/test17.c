@@ -234,7 +234,7 @@ void test02()
 
   /* Already twenty files opened; opening another has to fail */
   if (creat("file02", 0777) != FAIL)
-	e(4);
+	me(4);
   else
   	if (errno != EMFILE) e(5);
 
@@ -475,8 +475,13 @@ void test10()
 
   /* Try to unlink a dir being user */
   if (unlink("drwx") != FAIL) e(14);
-  else
+  else {
+#ifdef __linux
+	if (errno != EISDIR) e(15);
+#else
 	if (errno != EPERM) e(15);
+#endif
+  }
 
   /* Try giving link wrong input */
 
@@ -632,7 +637,7 @@ void test11()
 
   /* Test opening a lot of files */
   if ((n = open_alot()) != MAXOPEN) e(19);
-  if (pipe(fd) != FAIL) e(20);
+  if (pipe(fd) != FAIL) me(20);
   else
 	if (errno != EMFILE) e(21);
   if (close_alot(n) != n) e(22);

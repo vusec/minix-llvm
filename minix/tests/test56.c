@@ -43,7 +43,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#ifdef __minix
 #include <sys/ucred.h>
+#endif
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -186,8 +188,10 @@ static void test_socketpair(void)
 
 static void test_ucred(void)
 {
+#ifdef __minix
 	struct uucred credentials;
 	socklen_t ucred_length;
+#endif
 	uid_t euid = geteuid();
 	gid_t egid = getegid();
 	int sv[2];
@@ -195,13 +199,16 @@ static void test_ucred(void)
 
 	debug("Test credentials passing");
 
+#ifdef __minix
 	ucred_length = sizeof(struct uucred);
+#endif
 
 	rc = socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
 	if (rc == -1) {
 		test_fail("socketpair(PF_UNIX, SOCK_STREAM, 0, sv) failed");
 	}
 
+#ifdef __minix
 	memset(&credentials, '\0', ucred_length);
 	rc = getsockopt(sv[0], SOL_SOCKET, SO_PEERCRED, &credentials, 
 							&ucred_length);
@@ -221,6 +228,7 @@ static void test_ucred(void)
 	} else if (credentials.cr_uid != euid || credentials.cr_gid != egid) {
 		test_fail("getpeereid() didn't give the correct euid/egid");
 	}
+#endif
 
 	CLOSE(sv[0]);
 	CLOSE(sv[1]);
@@ -246,12 +254,13 @@ static void callback_check_sockaddr(const struct sockaddr *sockaddr,
 			strncmp(sockaddr_un->sun_path,
 			fullpath(path),
 			sizeof(sockaddr_un->sun_path) - 1) == 0)) {
-
+#ifdef __minix
 		snprintf(buf, sizeof(buf), "%s() didn't return the right addr",
 			callname);
 		test_fail(buf);
 		fprintf(stderr, "exp: '%s' | got: '%s'\n", path,
 			sockaddr_un->sun_path);
+#endif
 	}
 }
 
@@ -282,7 +291,7 @@ static void test_bind_unix(void)
 
 	rc = bind(sd, (struct sockaddr *) &addr, sizeof(struct sockaddr_un));
 	if (!(rc == -1 && errno == ENOENT)) {
-		test_fail("bind() should have failed with ENOENT");
+		test_fail_m("bind() should have failed with ENOENT");
 	}
 	CLOSE(sd);
 
@@ -301,7 +310,7 @@ static void test_bind_unix(void)
 	errno = 0;
 	rc = bind(sd, (struct sockaddr *) &addr, sizeof(struct sockaddr_un));
 	if (!((rc == -1) && (errno == ELOOP))) {
-		test_fail("bind() should have failed with ELOOP");
+		test_fail_m("bind() should have failed with ELOOP");
 	}
 	CLOSE(sd);
 
@@ -317,7 +326,7 @@ static void test_bind_unix(void)
 	addr.sun_path[2] = 'o';
 	addr.sun_path[3] = '\0';
 	SOCKET(sd, PF_UNIX, SOCK_STREAM, 0);
-	rc = bind(sd, (struct sockaddr *) &addr, strlen(addr.sun_path) + 1);
+	rc = bind_reuse(sd, (struct sockaddr *) &addr, strlen(addr.sun_path) + 1);
 	if (rc == -1) {
 		test_fail("bind() should have worked");
 	}
@@ -334,6 +343,7 @@ static void callback_xfer_prepclient(void) {
 }
 
 static void callback_xfer_peercred(int sd) {
+#ifdef __minix
 	struct uucred credentials;
 	int rc;
 	socklen_t ucred_length;
@@ -354,6 +364,7 @@ static void callback_xfer_peercred(int sd) {
 			geteuid(), credentials.cr_gid, getgid(), getegid());
 		test_fail("[client] Credential passing gave us a bad UID/GID");
 	}
+#endif
 }
 
 static void test_vectorio(int type)
@@ -560,7 +571,9 @@ static void test_scm_credentials(void)
 	int rc;
 	int src;
 	int dst;
+#ifdef __minix
 	struct uucred cred;
+#endif
 	struct cmsghdr *cmsg = NULL;
 	struct sockaddr_un addr;
 	struct iovec iov[3];
@@ -596,7 +609,7 @@ static void test_scm_credentials(void)
 	memset(&addr, '\0', sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
 	strncpy(addr.sun_path, TEST_SUN_PATHB, sizeof(addr.sun_path) - 1);
-	rc = bind(src, (struct sockaddr *) &addr, addrlen);
+	rc = bind_reuse(src, (struct sockaddr *) &addr, addrlen);
 	if (rc == -1) {
 		test_fail("bind");
 	}
@@ -607,7 +620,7 @@ static void test_scm_credentials(void)
 	addr.sun_family = AF_UNIX;
 	strncpy(addr.sun_path, TEST_SUN_PATH, sizeof(addr.sun_path) - 1);
 
-	rc = bind(dst, (struct sockaddr *) &addr, addrlen);
+	rc = bind_reuse(dst, (struct sockaddr *) &addr, addrlen);
 	if (rc == -1) {
 		test_fail("bind");
 	}
@@ -682,9 +695,10 @@ static void test_scm_credentials(void)
 	 */
 	if (addr.sun_family != AF_UNIX || strcmp(addr.sun_path,
 					fullpath(TEST_SUN_PATHB))) {
-		test_fail("recvmsg");
+		test_fail_m("recvmsg");
 	}
 
+#ifdef __minix
 	debug("looking for credentials");
 
 	memset(&cred, '\0', sizeof(struct uucred));
@@ -704,6 +718,7 @@ static void test_scm_credentials(void)
 
 		test_fail("did no receive the proper credentials");
 	}
+#endif
 
 	rc = close(dst);
 	if (rc == -1) {
@@ -1112,7 +1127,7 @@ static void test_permissions(void) {
 		rc = bind(sd, (struct sockaddr *) &addr,
 				 sizeof(struct sockaddr_un));
 		if (rc != -1) {
-			test_fail("bind() should not have worked");
+			test_fail_m("bind() should not have worked");
 		}
 		exit(errct);
 	} else {
@@ -1149,15 +1164,15 @@ static void test_permissions(void) {
 		exit(errct);
 	} else {
 		SOCKET(sd, PF_UNIX, SOCK_STREAM, 0);
-		rc = bind(sd, (struct sockaddr *) &addr,
+		rc = bind_reuse(sd, (struct sockaddr *) &addr,
 				 sizeof(struct sockaddr_un));
 		if (rc == -1) {
-			test_fail("bind() should have worked");
+			test_fail_m("bind() should have worked");
 		}
 
 		rc = listen(sd, 8);
 		if (rc == -1) {
-			test_fail("listen(sd, 8) should have worked");
+			test_fail_m("listen(sd, 8) should have worked");
 		}
 		kill(pid, SIGUSR1);
 		sleep(1);
@@ -1290,6 +1305,7 @@ static void test_select()
 	}
 
 	/* Now try to write to closed pipe */
+	sigpipe_expect_start();
 	errno = 0;
 	if ((res = write(socks[1], buf, sizeof(buf))) != -1) {
 		printf("write res = %d\n", res);
@@ -1299,6 +1315,7 @@ static void test_select()
 		printf("errno = %d\n", errno);
 		test_fail("writing to closed pipe should return EPIPE\n");
 	}
+	sigpipe_expect_stop();
 
 	close(socks[1]);
 }
@@ -1418,6 +1435,7 @@ int main(int argc, char *argv[])
 	debug("entering main()");
 
 	start(56);
+	common_socket_init();
 
 	test_socket(&info);
 	test_bind(&info);
@@ -1457,11 +1475,14 @@ int main(int argc, char *argv[])
 	test_fchmod();
 	test_nonblock(&info);
 	test_connect_nb(&info);
+#ifdef __minix
 	test_intr(&info);
 	test_connect_close(&info);
 	test_listen_close(&info);
 	test_listen_close_nb(&info);
+#endif
 
+	sigpipe_check();
 	quit();
 
 	return -1;	/* we should never get here */

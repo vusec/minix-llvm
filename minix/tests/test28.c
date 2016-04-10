@@ -127,11 +127,11 @@ void test28a()
   if (st.st_gid != getegid()) e(25);
   if (st.st_size < 0) e(26);
   if ((st.st_mode & 0777) != 0765) e(27);
-  if (st.st_atime <= time1) e(28);
+  if (st.st_atime <= time1) me(28);
   if (st.st_atime >= time2) e(29);
-  if (st.st_ctime <= time1) e(30);
+  if (st.st_ctime <= time1) me(30);
   if (st.st_ctime >= time2) e(31);
-  if (st.st_mtime <= time1) e(32);
+  if (st.st_mtime <= time1) me(32);
   if (st.st_mtime >= time2) e(33);
 
   /* Check if parent is updated */
@@ -140,9 +140,9 @@ void test28a()
   while (time2 >= time((time_t *)0))
 	;
   time(&time2);
-  if (st.st_ctime <= time1) e(35);
+  if (st.st_ctime <= time1) me(35);
   if (st.st_ctime >= time2) e(36);
-  if (st.st_mtime <= time1) e(37);
+  if (st.st_mtime <= time1) me(37);
   if (st.st_mtime >= time2) e(38);
   time(&time1);
   while (time1 >= time((time_t *)0))
@@ -153,9 +153,9 @@ void test28a()
   while (time2 >= time((time_t *)0))
 	;
   time(&time2);
-  if (st.st_ctime <= time1) e(41);
+  if (st.st_ctime <= time1) me(41);
   if (st.st_ctime >= time2) e(42);
-  if (st.st_mtime <= time1) e(43);
+  if (st.st_mtime <= time1) me(43);
   if (st.st_mtime >= time2) e(44);
 }
 

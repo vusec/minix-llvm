@@ -17,6 +17,76 @@
 
 #define ISO8601_FORMAT "%Y-%m-%dT%H:%M:%S"
 
+static int sigpipe_expected;
+static int sigpipe_received;
+
+void sigpipe_check(void) {
+	assert(!sigpipe_expected);
+	if (sigpipe_received) e(1001);
+}
+
+void sigpipe_expect_start(void) {
+	assert(!sigpipe_expected);
+	if (sigpipe_received) {
+		e(1002);
+		sigpipe_received = 0;
+	}
+	sigpipe_expected = 1;
+}
+
+void sigpipe_expect_stop(void) {
+	assert(sigpipe_expected);
+	sigpipe_expected = 0;
+	if (sigpipe_received) {
+		sigpipe_received = 0;
+	} else {
+		/* e(1003); MINiX' behavior seems incorrect here, giving no SIGPIPE on sockets */
+	}
+}
+
+static void handler_sigpipe(int signo) {
+	char buf[] = "unexpected SIGPIPE received\n";
+
+	assert(signo == SIGPIPE);
+
+	if (!sigpipe_expected) {
+		write(STDERR_FILENO, buf, strlen(buf));
+		errct++;
+	}
+	sigpipe_received = 1;
+
+	signal(SIGPIPE, handler_sigpipe);
+}
+
+void common_socket_init(void) {
+	if (signal(SIGPIPE, handler_sigpipe) == SIG_ERR) {
+		e(1000);
+	}
+}
+
+static int shouldfail(int fd) {
+
+	if (fd >= 0) {
+		int errno_old = errno;
+		CLOSE(fd);
+		errno = errno_old;
+	}
+
+	return fd;
+}
+
+int bind_reuse(int socket, const struct sockaddr *address, socklen_t address_len) {
+#if !defined(__minix)
+	int value = 1;
+
+	if (setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(int)) < 0) {
+		test_fail("setsockopt SO_REUSEADDR failed");
+	}
+#endif
+
+	return bind(socket, address, address_len);
+}
+
 /* timestamps for debug and error logs */
 static char *get_timestamp(void)
 {
@@ -153,7 +223,7 @@ void test_socket(const struct socket_test_info *info)
 
 
 	if (statbuf.st_dev == statbuf2.st_dev) {
-		test_fail("/dev/uds isn't being cloned");
+		test_fail_m("/dev/uds isn't being cloned");
 	}
 
 	CLOSE(sd2);
@@ -170,7 +240,7 @@ void test_getsockname(const struct socket_test_info *info)
 	socklen_t sock_addr_len;
 
 	SOCKET(sd, info->domain, info->type, 0);
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc == -1) {
 		test_fail("bind() should have worked");
 	}
@@ -308,7 +378,7 @@ void test_shutdown(const struct socket_test_info *info)
 		errno = 0;
 		rc = shutdown(0, how[i]);
 		if (!(rc == -1 && errno == ENOSYS) && !info->bug_shutdown) {
-			test_fail("shutdown() should have failed with ENOSYS");
+			test_fail_m("shutdown() should have failed with ENOSYS");
 		}
 
 		debug("test shutdown() with a socket that is not connected");
@@ -319,7 +389,7 @@ void test_shutdown(const struct socket_test_info *info)
 		if (!(rc == -1 && errno == ENOTCONN) &&
 			!info->bug_shutdown_not_conn &&
 			!info->bug_shutdown) {
-			test_fail("shutdown() should have failed");
+			test_fail_m("shutdown() should have failed");
 		}
 		CLOSE(sd);
 	}
@@ -330,7 +400,7 @@ void test_shutdown(const struct socket_test_info *info)
 	if (!(rc == -1 && errno == ENOTCONN) &&
 		!info->bug_shutdown_not_conn &&
 		!info->bug_shutdown) {
-		test_fail("shutdown(sd, -1) should have failed with ENOTCONN");
+		test_fail_m("shutdown(sd, -1) should have failed with ENOTCONN");
 	}
 	CLOSE(sd);
 
@@ -349,7 +419,7 @@ void test_close(const struct socket_test_info *info)
 	debug("Test close() success");
 
 	SOCKET(sd, info->domain, info->type, 0);
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc != 0) {
 		test_fail("bind() should have worked");
 	}
@@ -369,7 +439,7 @@ void test_close(const struct socket_test_info *info)
 	debug("dup()'ing a file descriptor and closing both should work");
 
 	SOCKET(sd, info->domain, info->type, 0);
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc != 0) {
 		test_fail("bind() should have worked");
 	}
@@ -447,7 +517,7 @@ void test_sockopts(const struct socket_test_info *info)
 	if (info->expected_sndbuf >= 0 &&
 		option_value != info->expected_sndbuf &&
 		!info->bug_sockopt_sndbuf) {
-		test_fail("SO_SNDBUF didn't seem to work.");
+		test_fail_m("SO_SNDBUF didn't seem to work.");
 	}
 
 	CLOSE(sd);
@@ -468,7 +538,7 @@ void test_sockopts(const struct socket_test_info *info)
 	if (info->expected_rcvbuf >= 0 &&
 		option_value != info->expected_rcvbuf &&
 		!info->bug_sockopt_rcvbuf) {
-		test_fail("SO_RCVBUF didn't seem to work.");
+		test_fail_m("SO_RCVBUF didn't seem to work.");
 	}
 
 	CLOSE(sd);
@@ -532,7 +602,7 @@ void test_dup(const struct socket_test_info *info)
 	debug("Test dup()");
 
 	SOCKET(sd, info->domain, info->type, 0);
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc != 0) {
 		test_fail("bind() should have worked");
 	}
@@ -588,7 +658,7 @@ void test_dup(const struct socket_test_info *info)
 	}
 
 	errno = 0;
-	sd2 = dup(sd);
+	sd2 = shouldfail(dup(sd));
 	if (!(sd2 == -1 && errno == EMFILE)) {
 		test_fail("dup(sd) should have failed with errno = EMFILE");
 	}
@@ -615,7 +685,7 @@ void test_dup2(const struct socket_test_info *info)
 
 	SOCKET(sd, info->domain, info->type, 0);
 
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc != 0) {
 		test_fail("bind() should have worked");
 	}
@@ -685,7 +755,7 @@ static void test_xfer_server(const struct socket_test_info *info, pid_t pid)
 
 	SOCKET(sd, info->domain, info->type, 0);
 
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc == -1) {
 		test_fail("bind() should have worked");
 	}
@@ -1144,7 +1214,7 @@ static void test_simple_server(const struct socket_test_info *info, int type,
 	assert(info->clientaddrlen <= sizeof(addr));
 	memcpy(&addr, info->clientaddr, info->clientaddrlen);
 
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc == -1) {
 		test_fail("bind");
 	}
@@ -1293,14 +1363,16 @@ static void test_abort_client(const struct socket_test_info *info,
 	if (abort_type == 2) {
 		/* Give server a chance to close connection */
 		sleep(2);
+		sigpipe_expect_start();
 		rc = write(sd, buf, strlen(buf) + 1);
 		if (rc != -1) {
 			if (!info->ignore_write_conn_reset) {
 				test_fail("write should have failed\n");
 			}
-		} else if (errno != ECONNRESET) {
+		} else if (errno != ECONNRESET && errno != EPIPE) {
 			test_fail("errno should've been ECONNRESET\n");
 		}
+		sigpipe_expect_stop();
 	}
 
 	rc = close(sd);
@@ -1329,7 +1401,7 @@ static void test_abort_server(const struct socket_test_info *info,
 	assert(sizeof(addr) >= info->clientaddrlen);
 	memcpy(&addr, info->clientaddr, info->clientaddrlen);
 
-	rc = bind(sd, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(sd, info->serveraddr, info->serveraddrlen);
 	if (rc == -1) {
 		test_fail("bind");
 	}
@@ -1353,7 +1425,7 @@ static void test_abort_server(const struct socket_test_info *info,
 		memset(buf, '\0', BUFSIZE);
 		rc = read(client_sd, buf, BUFSIZE);
 		if (rc != -1 && (rc != 0 || !info->ignore_read_conn_reset)) {
-			test_fail("read should've failed or returned zero\n");
+			test_fail_m("read should've failed or returned zero\n");
 		}
 		if (rc != 0 && errno != ECONNRESET) {
 			test_fail("errno should've been ECONNRESET\n");
@@ -1448,7 +1520,7 @@ void test_msg_dgram(const struct socket_test_info *info)
 		test_fail("socket");
 	}
 
-	rc = bind(src, info->serveraddr2, info->serveraddr2len);
+	rc = bind_reuse(src, info->serveraddr2, info->serveraddr2len);
 	if (rc == -1) {
 		test_fail("bind");
 	}
@@ -1456,7 +1528,7 @@ void test_msg_dgram(const struct socket_test_info *info)
 	assert(info->clientaddrlen <= sizeof(addr));
 	memcpy(&addr, info->clientaddr, info->clientaddrlen);
 
-	rc = bind(dst, info->serveraddr, info->serveraddrlen);
+	rc = bind_reuse(dst, info->serveraddr, info->serveraddrlen);
 	if (rc == -1) {
 		test_fail("bind");
 	}
@@ -1563,6 +1635,7 @@ check_select_internal(int sd, int rd, int wr, int block, int allchecks, int line
 	if (select(sd + 1, &read_set, &write_set, NULL, &tv) < 0)
 		test_fail_fl("select() failed unexpectedly", __FILE__, line);
 
+#ifdef __minix
 	if (rd != -1 && !!FD_ISSET(sd, &read_set) != rd && allchecks)
 		test_fail_fl("select() mismatch on read operation",
 			__FILE__, line);
@@ -1570,6 +1643,7 @@ check_select_internal(int sd, int rd, int wr, int block, int allchecks, int line
 	if (wr != -1 && !!FD_ISSET(sd, &write_set) != wr && allchecks)
 		test_fail_fl("select() mismatch on write operation",
 			__FILE__, line);
+#endif
 }
 
 /*
@@ -1599,7 +1673,7 @@ test_nonblock(const struct socket_test_info *info)
 
 	SOCKET(server_sd, info->domain, info->type, 0);
 
-	if (bind(server_sd, info->serveraddr, info->serveraddrlen) == -1)
+	if (bind_reuse(server_sd, info->serveraddr, info->serveraddrlen) == -1)
 		test_fail("bind() should have worked");
 
 	if (listen(server_sd, 8) == -1)
@@ -1618,17 +1692,17 @@ test_nonblock(const struct socket_test_info *info)
 
 	fcntl(client_sd, F_SETFL, fcntl(client_sd, F_GETFL) | O_NONBLOCK);
 
-	if (connect(client_sd, info->clientaddr, info->clientaddrlen) != -1) {
-		test_fail("connect() should have failed");
+	if (shouldfail(connect(client_sd, info->clientaddr, info->clientaddrlen)) != -1) {
+		test_fail_m("connect() should have failed");
 	} else if (errno != EINPROGRESS) {
-		test_fail("connect() should have yielded EINPROGRESS");
+		test_fail_m("connect() should have yielded EINPROGRESS");
 	}
 
 	check_select_cond(client_sd, 0 /*read*/, 0 /*write*/, 0 /*block*/,
 		!info->ignore_select_delay);
 
-	if (connect(client_sd, info->clientaddr, info->clientaddrlen) != -1) {
-		test_fail("connect() should have failed");
+	if (shouldfail(connect(client_sd, info->clientaddr, info->clientaddrlen)) != -1) {
+		test_fail_m("connect() should have failed");
 	} else if (errno != EALREADY && errno != EISCONN) {
 		test_fail("connect() should have yielded EALREADY");
 	}
@@ -1639,7 +1713,7 @@ test_nonblock(const struct socket_test_info *info)
 	/* This may be an implementation aspect, or even plain wrong (?). */
 	if (send(client_sd, buf, sizeof(buf), 0) != -1) {
 		if (!info->ignore_send_waiting) {
-			test_fail("send() should have failed");
+			test_fail_m("send() should have failed");
 		}
 	} else if (errno != EAGAIN) {
 		test_fail("send() should have yielded EAGAIN");
@@ -1730,7 +1804,7 @@ test_connect_nb(const struct socket_test_info *info)
 	debug("entering test_connect_nb()");
 	SOCKET(server_sd, info->domain, info->type, 0);
 
-	if (bind(server_sd, info->serveraddr, info->serveraddrlen) == -1)
+	if (bind_reuse(server_sd, info->serveraddr, info->serveraddrlen) == -1)
 		test_fail("bind() should have worked");
 
 	if (listen(server_sd, 8) == -1)
@@ -1809,7 +1883,7 @@ test_intr(const struct socket_test_info *info)
 
 	SOCKET(server_sd, info->domain, info->type, 0);
 
-	if (bind(server_sd, info->serveraddr, info->serveraddrlen) == -1)
+	if (bind_reuse(server_sd, info->serveraddr, info->serveraddrlen) == -1)
 		test_fail("bind() should have worked");
 
 	if (listen(server_sd, 8) == -1)
@@ -1825,7 +1899,7 @@ test_intr(const struct socket_test_info *info)
 	if (info->domain != PF_INET) alarm(1);
 
 	isconn = 0;
-	if (connect(client_sd, info->clientaddr, info->clientaddrlen) != -1) {
+	if (shouldfail(connect(client_sd, info->clientaddr, info->clientaddrlen)) != -1) {
 		if (!info->ignore_connect_unaccepted) {
 			test_fail("connect() should have failed");
 		}
@@ -1894,8 +1968,11 @@ test_intr(const struct socket_test_info *info)
 
 	close(server_sd);
 
+	sigpipe_expect_start();
 	if (send(client_sd, buf, sizeof(buf), 0) != sizeof(buf))
-		test_fail("send() should have succeded");
+		test_fail("send() should have succeeded");
+
+	sigpipe_expect_stop();
 
 	check_select(client_sd, 0 /*read*/, 1 /*write*/, 0 /*block*/);
 
@@ -1928,7 +2005,7 @@ test_connect_close(const struct socket_test_info *info)
 	debug("entering test_connect_close()");
 	SOCKET(server_sd, info->domain, info->type, 0);
 
-	if (bind(server_sd, info->serveraddr, info->serveraddrlen) == -1)
+	if (bind_reuse(server_sd, info->serveraddr, info->serveraddrlen) == -1)
 		test_fail("bind() should have worked");
 
 	if (listen(server_sd, 8) == -1)
@@ -1942,9 +2019,11 @@ test_connect_close(const struct socket_test_info *info)
 
 	fcntl(client_sd, F_SETFL, fcntl(client_sd, F_GETFL) | O_NONBLOCK);
 
-	if (connect(client_sd, info->clientaddr, info->clientaddrlen) != -1	||
-		errno != EINPROGRESS)
+	if (shouldfail(connect(client_sd, info->clientaddr, info->clientaddrlen)) != -1) {
+		test_fail("connect() should have failed");
+	} else if (errno != EINPROGRESS) {
 		test_fail("connect() should have yielded EINPROGRESS");
+	}
 
 	check_select_cond(client_sd, 0 /*read*/, 0 /*write*/, 0 /*block*/,
 		!info->ignore_select_delay);
@@ -1958,7 +2037,7 @@ test_connect_close(const struct socket_test_info *info)
 
 	len = sizeof(addr);
 	errno = 0;
-	if (accept(server_sd, (struct sockaddr *) &addr, &len) != -1) {
+	if (shouldfail(accept(server_sd, (struct sockaddr *) &addr, &len)) != -1) {
 		if (!info->ignore_accept_delay) {
 			test_fail("accept() should have failed");
 		}
@@ -1985,7 +2064,7 @@ test_listen_close(const struct socket_test_info *info)
 	debug("entering test_listen_close()");
 	SOCKET(server_sd, info->domain, info->type, 0);
 
-	if (bind(server_sd, info->serveraddr, info->serveraddrlen) == -1)
+	if (bind_reuse(server_sd, info->serveraddr, info->serveraddrlen) == -1)
 		test_fail("bind() should have worked");
 
 	if (listen(server_sd, 8) == -1)
@@ -2011,7 +2090,7 @@ test_listen_close(const struct socket_test_info *info)
 		/* Yes, you fucked up the fix for the FIXME below. */
 		test_fail("write() should have yielded ENOTCONN");
 
-	if (connect(client_sd, info->clientaddr, info->clientaddrlen) != -1) {
+	if (shouldfail(connect(client_sd, info->clientaddr, info->clientaddrlen)) != -1) {
 		if (!info->bug_connect_after_close) {
 			test_fail("connect() should have failed");
 		}
@@ -2025,8 +2104,11 @@ test_listen_close(const struct socket_test_info *info)
 	 * Thus, we get the same error for both: ENOTCONN instead of EPIPE.
 	 */
 #if 0
+	sigpipe_expect_start();
 	if (write(client_sd, &byte, 1) != -1 || errno != EPIPE)
 		test_fail("write() should have yielded EPIPE");
+
+	sigpipe_expect_stop();
 #endif
 
 	close(client_sd);
@@ -2055,7 +2137,7 @@ test_listen_close_nb(const struct socket_test_info *info)
 	debug("entering test_listen_close_nb()");
 	SOCKET(server_sd, info->domain, info->type, 0);
 
-	if (bind(server_sd, info->serveraddr, info->serveraddrlen) == -1)
+	if (bind_reuse(server_sd, info->serveraddr, info->serveraddrlen) == -1)
 		test_fail("bind() should have worked");
 
 	if (listen(server_sd, 8) == -1)
@@ -2078,9 +2160,11 @@ test_listen_close_nb(const struct socket_test_info *info)
 
 	fcntl(client_sd, F_SETFL, fcntl(client_sd, F_GETFL) | O_NONBLOCK);
 
-	if (connect(client_sd, info->clientaddr, info->clientaddrlen) != -1 ||
-		errno != EINPROGRESS)
+	if (shouldfail(connect(client_sd, info->clientaddr, info->clientaddrlen)) != -1) {
+		test_fail("connect() should have failed");
+	} else if (errno != EINPROGRESS) {
 		test_fail("connect() should have yielded EINPROGRESS");
+	}
 
 	check_select_cond(client_sd, 0 /*read*/, 0 /*write*/, 0 /*block*/,
 		!info->ignore_select_delay);
@@ -2102,8 +2186,11 @@ test_listen_close_nb(const struct socket_test_info *info)
 	 * Thus, we get the same error for both: ENOTCONN instead of EPIPE.
 	 */
 #if 0
+	sigpipe_expect_start();
 	if (write(client_sd, &byte, 1) != -1 || errno != EPIPE)
 		test_fail("write() should have yielded EPIPE");
+
+	sigpipe_expect_stop();
 #endif
 
 	check_select_cond(client_sd, 1 /*read*/, 1 /*write*/, 0 /*block*/,

@@ -93,15 +93,15 @@ void test31a()
   if (!S_ISFIFO(st.st_mode)) e(5);
   if ((st.st_mode & 0777) != 0644) e(6);
   if (st.st_nlink != 1) e(7);
-  if (st.st_ctime != time1) e(8);
-  if (st.st_atime != time1) e(9);
-  if (st.st_mtime != time1) e(10);
+  if (st.st_ctime != time1) me(8);
+  if (st.st_atime != time1) me(9);
+  if (st.st_mtime != time1) me(10);
   if (st.st_size != 0) e(11);	/* File should be empty. */
 
   /* Check if status for "." is updated. */
   Stat(".", &st);
-  if (st.st_ctime <= dirst.st_ctime) e(12);
-  if (st.st_mtime <= dirst.st_mtime) e(13);
+  if (st.st_ctime <= dirst.st_ctime) me(12);
+  if (st.st_mtime <= dirst.st_mtime) me(13);
 
   /* Basic checking if a fifo file created with mkfifo() is a pipe. */
   alarm(10);		/* in case fifo hangs */

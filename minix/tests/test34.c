@@ -115,7 +115,7 @@ void test34a()
 	if (st1.st_ctime > time1) e(7);
 	if (st1.st_ctime > time2) e(8);
 #ifndef V1_FILESYSTEM
-	if (st2.st_ctime < time1) e(9);
+	if (st2.st_ctime < time1) me(9);
 #endif
 	if (st2.st_ctime > time2) e(10);
 	if (st1.st_atime != st2.st_atime) e(11);

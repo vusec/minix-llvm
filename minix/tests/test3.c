@@ -143,7 +143,7 @@ void test3c()
   if ( (p = getenv("LOGNAME")) == NULL) { fprintf(stderr, "Please have $LOGNAME set properly.\n"); e(5); }
   strcpy(name, p);		/* save it, since getlogin might wipe it out */
   p = getlogin();
-  if (strcmp(p, name) != 0) { fprintf(stderr, "Please have $LOGNAME set to your real username. (su - instead of su?)\n"); e(6); }
+  if (!p || strcmp(p, name) != 0) { fprintf(stderr, "Please have $LOGNAME set to your real username. (su - instead of su?)\n"); me(6); }
 
   /* The following test could fail in a legal POSIX system.  However, if it
    * does, you deserve it to fail.
@@ -167,7 +167,9 @@ void test3d()
   if (strncmp(p, "/dev/tty", 8) != 0) e(3);	/* MINIX convention */
   
   if ( (p = ttyname(0)) == NULL) e(4);
+#ifdef __minix
   if (strncmp(p, "/dev/tty", 8) != 0 && strcmp(p, "/dev/console") != 0) e(5);
+#endif
   if ( (p = ttyname(3)) != NULL) e(6);
   if (ttyname(5000) != NULL) e(7);
   if ( (fd = creat("T3a", 0777)) < 0) e(8);
@@ -193,6 +195,8 @@ void test3e()
   if (sysconf(_SC_OPEN_MAX) < _POSIX_OPEN_MAX) e(4);
 
   /* The rest are MINIX specific */
+#ifdef __minix
   if (sysconf(_SC_JOB_CONTROL) >= 0) e(5);	/* no job control! */
+#endif
 }
 
