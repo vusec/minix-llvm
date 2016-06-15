@@ -354,8 +354,10 @@ int sef_cb_init_identity_state_transfer(int type, sef_init_info_t *info)
   vir_bytes data_start, p;
   size_t size;
 
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 
   /* Identity state transfer is for crash recovery and self update only. */
   if(type != SEF_INIT_RESTART && (type != SEF_INIT_LU || !(info->flags & SEF_LU_SELF))) {
@@ -363,14 +365,18 @@ int sef_cb_init_identity_state_transfer(int type, sef_init_info_t *info)
       return ENOSYS;
   }
 
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 
   /* Save stack refs. */
   sef_llvm_stack_refs_save(stack_buff);
 
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 
   old_brksize = _brksize;
   data_start = (vir_bytes)&_etext;
@@ -382,8 +388,10 @@ int sef_cb_init_identity_state_transfer(int type, sef_init_info_t *info)
   /* Transfer data. */
   size = (size_t)(_brksize - data_start);
 
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 
   if (SEF_LU_DATA_HOLES == (info->flags & SEF_LU_DATA_HOLES)) {
 	/* The data segment contains unmapped pages, so skip over those. */
@@ -391,20 +399,28 @@ int sef_cb_init_identity_state_transfer(int type, sef_init_info_t *info)
 	while(p < (vir_bytes)_brksize) {
 		/* ignore errors, as we can't predict when a memory page is
 		 * mapped or not. */
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 		(void)sef_copy_state_region(info, p, PAGE_SIZE, p);
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 		p += PAGE_SIZE;
 	}
   } else {
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 	r = sef_copy_state_region(info, data_start, size, data_start);
 	sef_init_done = 0;
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 	if(r != OK) {
 		printf("sef_cb_init_identity_state_transfer: data transfer failed\n");
 		return r;
@@ -432,24 +448,32 @@ int sef_cb_init_identity_state_transfer(int type, sef_init_info_t *info)
       /* Transfer state on the heap. */
       assert(_brksize == new_brksize);
       size = (size_t)(_brksize - old_brksize);
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
       r = sef_copy_state_region(info, (vir_bytes) old_brksize, size,
           (vir_bytes) old_brksize);
       if(r != OK) {
           printf("sef_cb_init_identity_state_transfer: extended heap transfer failed\n");
           return r;
       }
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
   }
 
   /* Restore stack refs. */
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
   sef_llvm_stack_refs_restore(stack_buff);
+#if SEF_INIT_VERBOSE
   printf("%s:%d: sef_init_done: %d\n", __FILE__, __LINE__, sef_init_done);
   printf("%s:%d: have_handled_message: %d\n", __FILE__, __LINE__, have_handled_message);
+#endif
 
   return OK;
 }
