@@ -533,7 +533,10 @@ void print_update_status()
  *			    rs_set_vulnerable 			 	     *
  *===========================================================================*/
 void rs_set_vulnerable(int vulnerable) {
-	static int was_vulnerable;
+	static int was_vulnerable = 0x70D0;
+
+	if (was_vulnerable == 0x70D0) 
+		was_vulnerable = !sys_privctl_get_rs_ready(); // initialize with reality
 
 	/* the system is in a vulnerable state if one or more replica's are
 	 * missing because other servers are needed to create the new replica's
