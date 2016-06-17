@@ -131,6 +131,15 @@ hyper() {
 	fi
 }
 
+console_print()
+{
+        if [ "$1" != "print" ]; then
+                return
+        fi
+        shift
+        printf "%-75s\n" "$@"
+}
+
 hyper print "Starting tests: $tests"
 
 # Run all the tests, keeping track of who failed.

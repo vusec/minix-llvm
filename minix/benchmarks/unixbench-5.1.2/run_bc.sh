@@ -56,6 +56,15 @@ hyper() {
 	fi
 }
 
+console_print()
+{
+        if [ "$1" != "print" ]; then
+		return
+	fi
+        shift
+        printf "%-75s\n" "$@"
+}
+
 hyperprintlines() {
 	while read line; do
 		hyper print "$*: $line"

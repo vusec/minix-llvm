@@ -383,7 +383,7 @@ function minix_bisect {
 
 case "$mode" in
   'buildimage')
-    (cd $ROOT && CREATE_IMAGE_ONLY=1 releasetools/x86_hdimage.sh)
+    (cd $ROOT && CREATE_IMAGE_ONLY=1 IMG=${IMAGE} releasetools/x86_hdimage.sh)
     ;;
   'buildboot')
     (cd $ROOT && $MAKE -C releasetools do-hdboot)
