@@ -49,10 +49,43 @@
 : ${ARGS_11="60 $PGMS/multi.sh 8"}
 
 sequence=0
-
+num_runs=`expr $RUNS_0 + $RUNS_1 + $RUNS_2 + $RUNS_3 + $RUNS_4 + $RUNS_5 + $RUNS_6 + $RUNS_7 + $RUNS_8 + $RUNS_9 + $RUNS_10 + $RUNS_11`
+progress=0
+ 
 hyper() {
 	if [ "$HYPER" != "" ]; then
 		"$HYPER" "$@"
+	fi
+}
+
+print_progress()
+{
+exagg=5
+        if [ "$1" != "print" ]; then
+		return
+	fi
+        shift
+	if echo "$@" | grep -q "Starting.*" ; then                                                  
+           remaining=$(($num_runs * $exagg ))                                                  
+           midstr=`printf "%0.s " \`seq 1 ${remaining}\``                                      
+           printf "Progress  [%s]  %d/%d \r" "${midstr}" 0 ${num_runs}                         
+           return                                                                              
+        fi                                                                                          
+        if echo "$@" | grep -q ".*: passed" ; then                                                  
+           progress=`expr $progress + 1`                                                       
+           remaining=$((((${num_runs} - ${progress}) * $exagg ) ))                             
+           num_syms=$((${progress} * $exagg))                                                  
+           prog_str=`printf "%0.s*" \`seq 1 ${num_syms}\``
+	   if [ ${remaining} -eq 0 ]; then                                                     
+                 space_str=                                                                  
+           else                                                                                
+                 space_str=`printf "%0.s " \`seq 1 ${remaining}\``                           
+           fi                                                                                  
+           printf "Progress : [%s%s]  %d/%d\r" "$prog_str" "$space_str" $progress $num_runs
+	   return 
+        fi            
+	if echo "$@" | grep -q "Completed.*" ; then		
+		printf "\n%-75s\n" "$@"
 	fi
 }
 
